@@ -1,4 +1,4 @@
-// src/components/CSVUploadComponent.js - Pure Frontend CSV Upload and Processing
+// src/components/CSVUploadComponent.js - Pure Frontend CSV Upload and Processing (Fixed)
 import React, { useState, useRef, useCallback } from 'react';
 import Papa from 'papaparse';
 
@@ -57,7 +57,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
   };
 
   // Validate CSV data structure
-  const validateCSVData = (data, headers) => {
+  const validateCSVData = useCallback((data, headers) => {
     const errors = [];
     const mappedHeaders = mapHeaders(headers);
     
@@ -102,9 +102,9 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     }
     
     return { errors, mappedHeaders, validRows: data.length - missingSKUs.length };
-  };
+  }, []);
 
-  // Process CSV file
+  // Process CSV file - FIXED: Added validateCSVData to dependency array
   const processCSVFile = useCallback((file) => {
     setIsProcessing(true);
     setUploadStatus('Processing CSV file...');
@@ -177,7 +177,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
         setIsProcessing(false);
       }
     });
-  }, []);
+  }, [validateCSVData]);
 
   // Drag and drop handlers
   const handleDragEnter = useCallback((e) => {

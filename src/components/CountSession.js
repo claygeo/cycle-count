@@ -1,4 +1,4 @@
-// src/components/CountSession.js - Pure Frontend Count Interface
+// src/components/CountSession.js - Pure Frontend Count Interface (Fixed)
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
@@ -23,6 +23,21 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
   
   // Get current session statistics
   const stats = localStorageManager.getCountStatistics();
+
+  // Stop camera
+  const stopCamera = useCallback(() => {
+    if (scannerRef.current) {
+      try {
+        scannerRef.current.stop();
+        scannerRef.current = null;
+      } catch (error) {
+        console.error('Error stopping scanner:', error);
+      }
+    }
+    setShowCamera(false);
+    setIsScanning(false);
+    setCameraError('');
+  }, []);
 
   // Auto-dismiss status messages
   useEffect(() => {
@@ -62,27 +77,12 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     };
   }, []);
 
-  // Camera cleanup
+  // Camera cleanup - FIXED: Added stopCamera to dependency array
   useEffect(() => {
     return () => {
       stopCamera();
     };
-  }, []);
-
-  // Stop camera
-  const stopCamera = useCallback(() => {
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.stop();
-        scannerRef.current = null;
-      } catch (error) {
-        console.error('Error stopping scanner:', error);
-      }
-    }
-    setShowCamera(false);
-    setIsScanning(false);
-    setCameraError('');
-  }, []);
+  }, [stopCamera]);
 
   // Start camera for barcode scanning
   const startCamera = async () => {
