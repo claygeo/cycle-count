@@ -1,6 +1,32 @@
-// src/components/CSVUploadComponent.js - Pure Frontend CSV Upload and Processing (Fixed)
+// src/components/CSVUploadComponent.js - Pure Frontend CSV Upload and Processing (ESLint Fixed)
 import React, { useState, useRef, useCallback } from 'react';
 import Papa from 'papaparse';
+
+// Expected CSV headers (flexible mapping) - moved outside component
+const EXPECTED_HEADERS = {
+  sku: ['sku', 'SKU', 'item_code', 'product_code', 'part_number'],
+  description: ['description', 'Description', 'item_description', 'product_name', 'name'],
+  expected_quantity: ['expected_quantity', 'expectedQuantity', 'quantity', 'qty', 'expected_qty']
+};
+
+// Map CSV headers to expected format - moved outside component
+const mapHeaders = (headers) => {
+  const mappedHeaders = {};
+  
+  Object.keys(EXPECTED_HEADERS).forEach(key => {
+    const possibleHeaders = EXPECTED_HEADERS[key];
+    const foundHeader = headers.find(header => 
+      possibleHeaders.some(possible => 
+        header.toLowerCase() === possible.toLowerCase()
+      )
+    );
+    if (foundHeader) {
+      mappedHeaders[key] = foundHeader;
+    }
+  });
+  
+  return mappedHeaders;
+};
 
 const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = null }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -12,13 +38,6 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
   
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
-
-  // Expected CSV headers (flexible mapping)
-  const expectedHeaders = {
-    sku: ['sku', 'SKU', 'item_code', 'product_code', 'part_number'],
-    description: ['description', 'Description', 'item_description', 'product_name', 'name'],
-    expected_quantity: ['expected_quantity', 'expectedQuantity', 'quantity', 'qty', 'expected_qty']
-  };
 
   // File validation
   const validateFile = (file) => {
@@ -37,26 +56,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     return errors;
   };
 
-  // Map CSV headers to expected format
-  const mapHeaders = (headers) => {
-    const mappedHeaders = {};
-    
-    Object.keys(expectedHeaders).forEach(key => {
-      const possibleHeaders = expectedHeaders[key];
-      const foundHeader = headers.find(header => 
-        possibleHeaders.some(possible => 
-          header.toLowerCase() === possible.toLowerCase()
-        )
-      );
-      if (foundHeader) {
-        mappedHeaders[key] = foundHeader;
-      }
-    });
-    
-    return mappedHeaders;
-  };
-
-  // Validate CSV data structure
+  // Validate CSV data structure - no dependencies needed now
   const validateCSVData = useCallback((data, headers) => {
     const errors = [];
     const mappedHeaders = mapHeaders(headers);
@@ -104,7 +104,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     return { errors, mappedHeaders, validRows: data.length - missingSKUs.length };
   }, []);
 
-  // Process CSV file - FIXED: Added validateCSVData to dependency array
+  // Process CSV file - now clean dependency array
   const processCSVFile = useCallback((file) => {
     setIsProcessing(true);
     setUploadStatus('Processing CSV file...');
