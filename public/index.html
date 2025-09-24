@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#3B82F6" />
+    <meta name="description" content="Professional inventory management with barcode tracking, real-time analytics, and multi-location support." />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Updated title - removed "Curaleaf" -->
+    <title>Inventory Manager</title>
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon and app icons -->
+    <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://inventory-insights.com/">
+    <meta property="og:title" content="Inventory Insights - Professional Inventory Management">
+    <meta property="og:description" content="Streamline your inventory with barcode tracking, real-time analytics, and multi-location support.">
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://inventory-insights.com/">
+    <meta property="twitter:title" content="Inventory Insights - Professional Inventory Management">
+    <meta property="twitter:description" content="Streamline your inventory with barcode tracking, real-time analytics, and multi-location support.">
+    <meta property="twitter:image" content="%PUBLIC_URL%/og-image.png">
+    
+    <!-- Additional meta tags for SEO -->
+    <meta name="keywords" content="inventory management, barcode tracking, warehouse management, inventory system, stock tracking">
+    <meta name="author" content="Inventory Insights">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Critical CSS for loading state -->
+    <style>
+      body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+        color: #111827;
+      }
+      
+      .loading-screen {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        flex-direction: column;
+      }
+      
+      .loading-logo {
+        width: 64px;
+        height: 64px;
+        background: #3B82F6;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        animation: pulse 2s infinite;
+      }
+      
+      .loading-text {
+        color: #6B7280;
+        font-size: 14px;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      /* Hide loading screen once React loads */
+      #root:not(:empty) + .loading-screen {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    
+    <!-- Fallback loading screen -->
+    <div class="loading-screen">
+      <div class="loading-logo">
+        <span style="color: white; font-weight: bold; font-size: 20px;">I</span>
+      </div>
+      <div class="loading-text">Loading Inventory Manager...</div>
+    </div>
+    
+    <!-- Progressive Web App Support -->
+    <script>
+      // Register service worker for PWA capabilities
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('%PUBLIC_URL%/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

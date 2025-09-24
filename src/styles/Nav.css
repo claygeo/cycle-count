@@ -1,0 +1,519 @@
+/* src/styles/Nav.css - Complete Mobile-First Navigation with Mint Green Theme - NO BLUE */
+
+/* ✅ MOBILE-FIRST: Navigation bar with sticky positioning and safe area */
+.nav-bar {
+  @apply bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50;
+  /* Safe area support for iOS */
+  padding-top: env(safe-area-inset-top);
+  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* ✅ MOBILE-FIRST: Container with responsive padding */
+.nav-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between;
+  min-height: 64px;
+  height: auto;
+}
+
+/* ✅ MOBILE-FIRST: Brand/title section */
+.nav-title {
+  @apply text-lg md:text-xl font-bold text-gray-900 flex items-center;
+}
+
+.nav-title .nav-logo {
+  @apply w-8 h-8 md:w-10 md:h-10 bg-emerald-600 rounded-lg flex items-center justify-center mr-3 transition-all duration-200 hover:scale-110 hover:shadow-md;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.nav-title .nav-logo-text {
+  @apply text-white font-bold text-sm md:text-base;
+}
+
+.nav-title .nav-brand-text {
+  @apply hidden sm:block;
+}
+
+/* ✅ MOBILE-FIRST: Mobile menu toggle button */
+.nav-mobile-toggle {
+  @apply md:hidden p-2 rounded-lg text-gray-600 hover:text-emerald-600 hover:bg-gray-100 transition-colors;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.nav-mobile-toggle svg {
+  @apply w-6 h-6;
+}
+
+/* ✅ MOBILE-FIRST: Links container with responsive behavior */
+.nav-links-container {
+  @apply hidden md:flex flex-1 justify-center;
+}
+
+.nav-links-container.mobile-open {
+  @apply flex absolute top-full left-0 right-0 bg-white border-t border-gray-200 shadow-lg;
+  @apply flex-col items-stretch p-4 space-y-2;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ✅ MOBILE-FIRST: Navigation links with touch-friendly targets */
+.nav-links {
+  @apply flex space-x-1 md:space-x-6;
+}
+
+.nav-links.mobile {
+  @apply flex-col space-x-0 space-y-1 w-full;
+}
+
+.nav-link {
+  @apply text-gray-600 hover:text-emerald-600 px-3 py-2 rounded-lg text-sm md:text-base font-medium transition-all duration-200 relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-link:hover {
+  @apply bg-emerald-50 transform translate-y-[-1px];
+}
+
+.nav-link:active {
+  @apply transform translate-y-0;
+}
+
+.nav-link-active {
+  @apply text-emerald-600 bg-emerald-50 font-semibold;
+}
+
+/* ✅ MOBILE-FIRST: Active link indicator */
+.nav-link-active::after {
+  content: '';
+  @apply absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-emerald-600 rounded-full;
+}
+
+.nav-links.mobile .nav-link-active::after {
+  @apply left-2 top-1/2 -translate-y-1/2 translate-x-0;
+}
+
+/* ✅ MOBILE-FIRST: Navigation actions with responsive layout */
+.nav-actions {
+  @apply flex items-center space-x-2 md:space-x-4;
+}
+
+.nav-actions.mobile {
+  @apply flex-col space-x-0 space-y-2 w-full mt-4 pt-4 border-t border-gray-200;
+}
+
+.nav-actions span {
+  @apply text-xs md:text-sm text-gray-600 font-medium;
+}
+
+.nav-actions span.mobile {
+  @apply text-center;
+}
+
+/* ✅ MOBILE-FIRST: User info section */
+.nav-user-info {
+  @apply hidden md:flex items-center space-x-3 px-3 py-2 rounded-lg bg-gray-50;
+}
+
+.nav-user-info.mobile {
+  @apply flex flex-col space-x-0 space-y-1 w-full text-center;
+}
+
+.nav-user-avatar {
+  @apply w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center;
+}
+
+.nav-user-avatar-text {
+  @apply text-emerald-600 font-semibold text-sm;
+}
+
+.nav-user-details {
+  @apply flex flex-col;
+}
+
+.nav-user-name {
+  @apply text-sm font-medium text-gray-900;
+}
+
+.nav-user-email {
+  @apply text-xs text-gray-500;
+}
+
+.nav-user-company {
+  @apply text-xs text-emerald-600 font-medium;
+}
+
+/* ✅ MOBILE-FIRST: Logout button with proper touch target */
+.nav-logout {
+  @apply bg-gray-100 text-gray-700 px-3 md:px-4 py-2 rounded-lg hover:bg-gray-200 text-sm font-medium transition-all duration-200;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.nav-logout:hover {
+  @apply transform translate-y-[-1px] shadow-sm;
+}
+
+.nav-logout:active {
+  @apply transform translate-y-0;
+}
+
+.nav-logout:focus {
+  @apply ring-2 ring-emerald-500 ring-offset-2;
+}
+
+.nav-logout.mobile {
+  @apply w-full justify-center;
+}
+
+/* ✅ MOBILE-FIRST: Location selector in nav */
+.nav-location {
+  @apply hidden md:flex items-center space-x-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-medium;
+}
+
+.nav-location-icon {
+  @apply w-4 h-4;
+}
+
+.nav-location.mobile {
+  @apply flex w-full justify-center mb-2;
+}
+
+/* ✅ MOBILE-FIRST: Navigation overlay for mobile menu */
+.nav-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-25 z-40 md:hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ✅ MOBILE-FIRST: Breadcrumb navigation */
+.nav-breadcrumb {
+  @apply flex items-center space-x-2 text-sm text-gray-500 px-4 py-2 bg-gray-50 border-b border-gray-200;
+}
+
+.nav-breadcrumb-item {
+  @apply flex items-center;
+}
+
+.nav-breadcrumb-separator {
+  @apply mx-2 text-gray-400;
+}
+
+.nav-breadcrumb-link {
+  @apply text-emerald-600 hover:text-emerald-700 transition-colors;
+}
+
+.nav-breadcrumb-current {
+  @apply text-gray-900 font-medium;
+}
+
+/* ✅ MOBILE-FIRST: Navigation tabs for sub-navigation */
+.nav-tabs {
+  @apply flex overflow-x-auto scrollbar-hide border-b border-gray-200 bg-white;
+  scroll-snap-type: x mandatory;
+}
+
+.nav-tab {
+  @apply flex-shrink-0 px-4 py-3 text-sm font-medium text-gray-600 hover:text-emerald-600 border-b-2 border-transparent transition-all;
+  scroll-snap-align: start;
+  min-width: 120px;
+}
+
+.nav-tab-active {
+  @apply text-emerald-600 border-emerald-600 bg-emerald-50;
+}
+
+.nav-tab:hover {
+  @apply bg-gray-50;
+}
+
+/* ✅ MOBILE-FIRST: Progress indicator in navigation */
+.nav-progress {
+  @apply absolute bottom-0 left-0 right-0 h-1 bg-gray-200;
+}
+
+.nav-progress-bar {
+  @apply h-full bg-emerald-500 transition-all duration-300;
+}
+
+/* ✅ MOBILE-FIRST: Status indicators - REMOVED ALL BLUE */
+.nav-status {
+  @apply flex items-center space-x-2 px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.nav-status-online {
+  @apply bg-emerald-100 text-emerald-800;
+}
+
+.nav-status-offline {
+  @apply bg-red-100 text-red-800;
+}
+
+.nav-status-syncing {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.nav-status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.nav-status-dot.online {
+  @apply bg-emerald-500;
+}
+
+.nav-status-dot.offline {
+  @apply bg-red-500;
+}
+
+.nav-status-dot.syncing {
+  @apply bg-yellow-500 animate-pulse;
+}
+
+/* ✅ MOBILE-FIRST: Notification badge */
+.nav-notification {
+  @apply relative;
+}
+
+.nav-notification-badge {
+  @apply absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold;
+  min-width: 16px;
+}
+
+.nav-notification-badge.large {
+  @apply w-5 h-5 text-xs;
+}
+
+.nav-notification-badge.pulse {
+  @apply animate-pulse;
+}
+
+/* ✅ MOBILE-FIRST: Search in navigation */
+.nav-search {
+  @apply hidden md:flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2 flex-1 max-w-md;
+}
+
+.nav-search-input {
+  @apply bg-transparent border-none outline-none text-sm flex-1 placeholder-gray-500;
+}
+
+.nav-search-icon {
+  @apply w-4 h-4 text-gray-400;
+}
+
+.nav-search.mobile {
+  @apply flex w-full mb-4;
+}
+
+/* ✅ MOBILE-FIRST: Responsive behavior */
+@media (max-width: 768px) {
+  .nav-container {
+    @apply flex-col relative;
+    min-height: auto;
+    padding-bottom: 0;
+  }
+  
+  .nav-container.menu-open {
+    @apply pb-4;
+  }
+  
+  .nav-title {
+    @apply w-full justify-between;
+    height: 64px;
+  }
+  
+  .nav-links-container,
+  .nav-actions {
+    @apply w-full;
+  }
+  
+  .nav-links-container.mobile-open {
+    animation: slideDown 0.2s ease-out;
+  }
+  
+  .nav-breadcrumb {
+    @apply overflow-x-auto scrollbar-hide;
+  }
+  
+  .nav-tabs {
+    @apply px-4;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Landscape orientation adjustments */
+@media (max-height: 600px) and (orientation: landscape) {
+  .nav-container {
+    @apply py-2;
+  }
+  
+  .nav-title {
+    height: 48px;
+  }
+  
+  .nav-links-container.mobile-open {
+    @apply max-h-40 overflow-y-auto;
+  }
+}
+
+/* ✅ MOBILE-FIRST: High contrast mode */
+@media (prefers-contrast: high) {
+  .nav-bar {
+    @apply border-b-2 border-gray-900;
+  }
+  
+  .nav-link-active {
+    @apply bg-gray-900 text-white;
+  }
+  
+  .nav-link-active::after {
+    @apply bg-white;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .nav-logo,
+  .nav-link,
+  .nav-logout,
+  .nav-tab {
+    transition: none !important;
+  }
+  
+  .nav-links-container.mobile-open {
+    animation: none !important;
+  }
+  
+  .nav-overlay {
+    animation: none !important;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Focus management for accessibility */
+.nav-link:focus,
+.nav-logout:focus,
+.nav-mobile-toggle:focus,
+.nav-tab:focus {
+  @apply outline-none ring-2 ring-emerald-500 ring-offset-2;
+}
+
+/* ✅ MOBILE-FIRST: Skip navigation link */
+.nav-skip-link {
+  @apply absolute left-0 top-0 bg-emerald-600 text-white px-4 py-2 rounded-br-lg transform -translate-y-full focus:translate-y-0 transition-transform z-50;
+}
+
+/* ✅ MOBILE-FIRST: Print styles */
+@media print {
+  .nav-bar {
+    display: none !important;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Dark mode support (future) */
+@media (prefers-color-scheme: dark) {
+  .nav-bar {
+    @apply bg-gray-900 border-gray-700;
+    background-color: rgba(17, 24, 39, 0.95);
+  }
+  
+  .nav-title {
+    @apply text-white;
+  }
+  
+  .nav-link {
+    @apply text-gray-300 hover:text-emerald-400;
+  }
+  
+  .nav-link:hover {
+    @apply bg-gray-800;
+  }
+  
+  .nav-link-active {
+    @apply text-emerald-400 bg-gray-800;
+  }
+  
+  .nav-logout {
+    @apply bg-gray-800 text-gray-300 hover:bg-gray-700;
+  }
+  
+  .nav-user-info {
+    @apply bg-gray-800;
+  }
+  
+  .nav-search {
+    @apply bg-gray-800;
+  }
+  
+  .nav-breadcrumb {
+    @apply bg-gray-800 border-gray-700;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Animation utilities */
+.nav-fade-in {
+  animation: navFadeIn 0.3s ease-out;
+}
+
+.nav-slide-in {
+  animation: navSlideIn 0.3s ease-out;
+}
+
+@keyframes navFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes navSlideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* ✅ MOBILE-FIRST: Utility classes for navigation */
+.nav-hidden {
+  @apply hidden;
+}
+
+.nav-visible {
+  @apply block;
+}
+
+.nav-sticky {
+  @apply sticky top-0 z-50;
+}
+
+.nav-fixed {
+  @apply fixed top-0 left-0 right-0 z-50;
+}
+
+.nav-transparent {
+  @apply bg-transparent backdrop-blur-sm;
+}
+
+.nav-solid {
+  @apply bg-white;
+}

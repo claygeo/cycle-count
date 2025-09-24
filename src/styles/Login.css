@@ -1,0 +1,496 @@
+/* src/styles/Login.css - Mobile-First with Mint Green Theme - NO BLUE */
+
+/* ✅ MOBILE-FIRST: Login container with responsive background */
+.login-container {
+  @apply min-h-screen flex items-center justify-center p-4;
+  background: linear-gradient(135deg, #1F2937 0%, #374151 50%, #4B5563 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ✅ MOBILE-FIRST: Login card with dark theme */
+.login-card {
+  @apply rounded-2xl w-full p-6 md:p-8 animate-fadeIn;
+  max-width: 28rem;
+  background-color: #181B22;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 25px 50px -12px #181B22, 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ✅ MOBILE-FIRST: Logo with proper sizing for mobile */
+.login-logo {
+  @apply h-12 md:h-14 mx-auto mb-6 transition-transform hover:scale-105;
+}
+
+/* ✅ MOBILE-FIRST: Title with responsive text size */
+.login-title {
+  @apply text-2xl md:text-3xl font-bold text-center mb-6 md:mb-8;
+  color: #F8FAFC;
+  background: linear-gradient(135deg, #10B981 0%, #065F46 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ✅ MOBILE-FIRST: Subtitle with proper spacing */
+.login-subtitle {
+  @apply text-base md:text-lg text-center mb-6 md:mb-8;
+  color: #9CA3AF;
+}
+
+/* ✅ MOBILE-FIRST: Error message with proper touch spacing */
+.login-error {
+  @apply text-sm text-center mb-4 animate-fadeIn rounded-lg p-3 md:p-4;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid #EF4444;
+  color: #FCA5A5;
+  border-left: 4px solid #EF4444;
+}
+
+/* ✅ MOBILE-FIRST: Success message */
+.login-success {
+  @apply text-sm text-center mb-4 animate-fadeIn rounded-lg p-3 md:p-4;
+  background-color: rgba(16, 185, 129, 0.1);
+  border: 1px solid #10B981;
+  color: #6EE7B7;
+  border-left: 4px solid #10B981;
+}
+
+/* ✅ MOBILE-FIRST: Info message */
+.login-info {
+  @apply text-sm text-center mb-4 animate-fadeIn rounded-lg p-3 md:p-4;
+  background-color: rgba(251, 191, 36, 0.1);
+  border: 1px solid #F59E0B;
+  color: #FCD34D;
+  border-left: 4px solid #F59E0B;
+}
+
+/* ✅ MOBILE-FIRST: Form with proper spacing */
+.login-form {
+  @apply space-y-4 md:space-y-6;
+}
+
+/* ✅ MOBILE-FIRST: Input group with consistent spacing */
+.login-input-group {
+  @apply space-y-2;
+}
+
+/* ✅ MOBILE-FIRST: Label with proper typography */
+.login-label {
+  @apply block text-sm font-medium;
+  color: #F8FAFC;
+}
+
+/* ✅ MOBILE-FIRST: Input with specific colors */
+.login-input {
+  @apply w-full px-4 py-3 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all duration-300;
+  min-height: 48px;
+  font-size: 16px; /* Prevent zoom on iOS */
+  background-color: #181B22;
+  border: 2px solid #39414E;
+  color: #9FA3AC;
+}
+
+.login-input:hover {
+  border-color: #4B5563;
+}
+
+.login-input:focus {
+  @apply transform scale-[1.02];
+  border-color: #10B981;
+}
+
+.login-input.error {
+  border-color: #EF4444;
+}
+
+.login-input::placeholder {
+  color: #6B7280;
+}
+
+/* ✅ MOBILE-FIRST: Button with proper touch target and mint green theme */
+.login-button {
+  @apply w-full py-3 md:py-4 px-4 md:px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 font-medium text-base md:text-lg;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #1F2937;
+  min-height: 48px;
+}
+
+.login-button:hover:not(:disabled) {
+  @apply transform translate-y-[-2px] shadow-lg;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.login-button:active:not(:disabled) {
+  @apply transform translate-y-0;
+}
+
+.login-button:focus {
+  @apply ring-4 ring-opacity-50;
+  ring-color: #10B981;
+}
+
+/* ✅ MOBILE-FIRST: Loading state for button */
+.login-button-loading {
+  @apply relative overflow-hidden;
+}
+
+.login-button-loading::after {
+  content: '';
+  @apply absolute inset-0 opacity-30;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: shimmer 1.5s infinite;
+  transform: translateX(-100%);
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ✅ MOBILE-FIRST: Link with mint green hover */
+.login-link {
+  @apply font-medium transition-colors duration-200 underline decoration-transparent;
+  color: #10B981;
+}
+
+.login-link:hover {
+  color: #059669;
+  text-decoration-color: #10B981;
+}
+
+.login-link:focus {
+  @apply ring-2 ring-offset-2 rounded;
+  ring-color: #10B981;
+}
+
+/* ✅ MOBILE-FIRST: Features grid */
+.login-features {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 text-xs md:text-sm mt-6;
+  color: #9CA3AF;
+}
+
+/* ✅ MOBILE-FIRST: Feature item with proper alignment */
+.login-feature {
+  @apply flex items-center p-2 rounded-lg transition-colors;
+  background-color: rgba(75, 85, 99, 0.3);
+}
+
+.login-feature:hover {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+/* ✅ MOBILE-FIRST: Feature icon with emerald color */
+.login-feature-icon {
+  @apply w-3 h-3 md:w-4 md:h-4 mr-2 flex-shrink-0;
+  color: #10B981;
+}
+
+/* ✅ MOBILE-FIRST: Header with proper mobile spacing */
+.login-header {
+  @apply shadow-sm border-b sticky top-0 z-10;
+  background-color: #181B22;
+  border-color: #374151;
+}
+
+.login-header-content {
+  @apply max-w-7xl mx-auto px-4 py-3 md:py-4 flex justify-between items-center;
+}
+
+.login-header-brand {
+  @apply flex items-center;
+}
+
+.login-header-logo {
+  @apply w-6 h-6 md:w-8 md:h-8 bg-emerald-600 rounded-lg flex items-center justify-center mr-2 md:mr-3;
+}
+
+.login-header-text {
+  @apply text-lg md:text-xl font-bold;
+  color: #F8FAFC;
+}
+
+.login-header-link {
+  @apply font-medium text-sm md:text-base transition-colors;
+  color: #10B981;
+}
+
+.login-header-link:hover {
+  color: #059669;
+}
+
+/* ✅ MOBILE-FIRST: Footer with responsive layout */
+.login-footer {
+  @apply mt-6 md:mt-8 pt-6;
+  border-top: 1px solid #374151;
+}
+
+.login-footer-text {
+  @apply text-center mb-4;
+}
+
+.login-footer-features {
+  @apply text-xs text-center mb-4;
+  color: #6B7280;
+}
+
+.login-footer-security {
+  @apply text-center;
+}
+
+.login-footer-security-text {
+  @apply text-xs flex items-center justify-center space-x-2;
+  color: #6B7280;
+}
+
+.login-footer-security-icon {
+  @apply w-3 h-3;
+  color: #10B981;
+}
+
+/* ✅ MOBILE-FIRST: Company logo section */
+.login-company-section {
+  @apply text-center mb-6 md:mb-8;
+}
+
+.login-company-logo {
+  @apply w-12 h-12 md:w-16 md:h-16 bg-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-4 shadow-lg;
+}
+
+.login-company-logo-text {
+  @apply text-white font-bold text-lg md:text-xl;
+}
+
+/* ✅ MOBILE-FIRST: Password strength indicator */
+.password-strength {
+  @apply mt-2 space-y-1;
+}
+
+.password-strength-bar {
+  @apply h-1 rounded-full overflow-hidden;
+  background-color: #374151;
+}
+
+.password-strength-fill {
+  @apply h-full transition-all duration-300;
+}
+
+.password-strength-fill.weak {
+  @apply w-1/4;
+  background-color: #EF4444;
+}
+
+.password-strength-fill.medium {
+  @apply w-2/4;
+  background-color: #F59E0B;
+}
+
+.password-strength-fill.strong {
+  @apply w-3/4;
+  background-color: #10B981;
+}
+
+.password-strength-fill.very-strong {
+  @apply w-full;
+  background-color: #059669;
+}
+
+.password-strength-text {
+  @apply text-xs;
+  color: #6B7280;
+}
+
+/* ✅ MOBILE-FIRST: Input validation states */
+.login-input-valid {
+  border-color: #10B981 !important;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.login-input-invalid {
+  border-color: #EF4444 !important;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+/* ✅ MOBILE-FIRST: Floating label effect */
+.login-input-floating {
+  @apply relative;
+}
+
+.login-input-floating input {
+  @apply pt-6 pb-2;
+}
+
+.login-input-floating label {
+  @apply absolute left-4 top-4 transition-all duration-200 pointer-events-none;
+  color: #6B7280;
+}
+
+.login-input-floating input:focus + label,
+.login-input-floating input:not(:placeholder-shown) + label {
+  @apply transform -translate-y-2 scale-75;
+  color: #10B981;
+}
+
+/* ✅ MOBILE-FIRST: Responsive breakpoints */
+@media (max-width: 640px) {
+  .login-container {
+    @apply p-3;
+  }
+  
+  .login-card {
+    @apply p-4 rounded-xl;
+  }
+  
+  .login-title {
+    @apply text-xl mb-4;
+  }
+  
+  .login-form {
+    @apply space-y-3;
+  }
+  
+  .login-features {
+    @apply grid-cols-1 gap-2;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Landscape orientation adjustments */
+@media (max-height: 600px) and (orientation: landscape) {
+  .login-container {
+    @apply py-2;
+  }
+  
+  .login-card {
+    @apply my-2;
+  }
+  
+  .login-title {
+    @apply mb-4;
+  }
+  
+  .login-company-section {
+    @apply mb-4;
+  }
+}
+
+/* ✅ MOBILE-FIRST: High DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .login-company-logo {
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ✅ MOBILE-FIRST: Focus management for accessibility */
+.login-form input:focus {
+  @apply outline-none ring-2 ring-offset-2;
+  ring-color: #10B981;
+  ring-offset-color: #181B22;
+}
+
+.login-form button:focus {
+  @apply outline-none ring-2 ring-offset-2;
+  ring-color: #10B981;
+  ring-offset-color: #181B22;
+}
+
+/* ✅ MOBILE-FIRST: Animation classes */
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(-100%); 
+  }
+  to { 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ✅ MOBILE-FIRST: Dark mode support (already implemented) */
+@media (prefers-color-scheme: dark) {
+  .login-container {
+    background: linear-gradient(135deg, #064E3B 0%, #065F46 50%, #047857 100%);
+  }
+  
+  .login-card {
+    background-color: #181B22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ✅ MOBILE-FIRST: Toggle button styles */
+.login-toggle {
+  background-color: #374151;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.login-toggle button {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.login-toggle button.active {
+  background-color: #86EFAC;
+  color: #1F2937;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.login-toggle button.inactive {
+  color: #FAFCFB;
+  background-color: transparent;
+}
+
+.login-toggle button.inactive:hover {
+  background-color: #4B5563;
+}
