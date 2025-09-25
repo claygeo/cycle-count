@@ -1,4 +1,4 @@
-// Fixed CountSession.js - Enhanced barcode support and proper progress tracking
+// ESLint Fixed CountSession.js - Enhanced barcode support and proper progress tracking
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
@@ -22,9 +22,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scannerRef = useRef(null);
-  
-  // Get current session statistics
-  const stats = localStorageManager.getCountStatistics();
 
   // Check camera support
   useEffect(() => {
@@ -44,6 +41,40 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     };
     
     checkCameraSupport();
+  }, []);
+
+  // Stop camera function
+  const stopCamera = useCallback(() => {
+    console.log('Stopping camera...');
+    
+    // Stop Quagga scanner
+    if (scannerRef.current) {
+      try {
+        scannerRef.current.stop();
+        scannerRef.current.offDetected();
+        scannerRef.current = null;
+      } catch (error) {
+        console.error('Error stopping Quagga:', error);
+      }
+    }
+    
+    // Stop video stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('Stopped video track:', track.kind);
+      });
+      streamRef.current = null;
+    }
+    
+    // Clear video source
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    setShowCamera(false);
+    setIsScanning(false);
+    setCameraError('');
   }, []);
 
   // Enhanced barcode scanner with better detection
@@ -150,41 +181,14 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         }
       }
     };
-  }, [showCamera, cameraSupported]);
+  }, [showCamera, cameraSupported, stopCamera]);
 
-  // Stop camera function
-  const stopCamera = useCallback(() => {
-    console.log('Stopping camera...');
-    
-    // Stop Quagga scanner
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.stop();
-        scannerRef.current.offDetected();
-        scannerRef.current = null;
-      } catch (error) {
-        console.error('Error stopping Quagga:', error);
-      }
-    }
-    
-    // Stop video stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-        console.log('Stopped video track:', track.kind);
-      });
-      streamRef.current = null;
-    }
-    
-    // Clear video source
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setShowCamera(false);
-    setIsScanning(false);
-    setCameraError('');
-  }, []);
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
   // Start camera function
   const startCamera = async () => {
@@ -231,13 +235,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       setShowCamera(false);
     }
   };
-
-  // Cleanup camera on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, [stopCamera]);
 
   // Auto-dismiss status messages
   useEffect(() => {
