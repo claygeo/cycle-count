@@ -1,15 +1,16 @@
-// src/components/CSVUploadComponent.js - Pure Frontend CSV Upload and Processing (ESLint Fixed)
+// Fixed CSVUploadComponent.js - Proper barcode mapping and validation
 import React, { useState, useRef, useCallback } from 'react';
 import Papa from 'papaparse';
 
-// Expected CSV headers (flexible mapping) - moved outside component
+// Enhanced header mapping with barcode support
 const EXPECTED_HEADERS = {
-  sku: ['sku', 'SKU', 'item_code', 'product_code', 'part_number'],
-  description: ['description', 'Description', 'item_description', 'product_name', 'name'],
-  expected_quantity: ['expected_quantity', 'expectedQuantity', 'quantity', 'qty', 'expected_qty']
+  sku: ['sku', 'SKU', 'item_code', 'product_code', 'part_number', 'id', 'ID'],
+  barcode: ['barcode', 'Barcode', 'BARCODE', 'upc', 'UPC', 'ean', 'EAN', 'gtin', 'GTIN'],
+  description: ['description', 'Description', 'item_description', 'product_name', 'name', 'desc', 'DESCRIPTION'],
+  expected_quantity: ['expected_quantity', 'expectedQuantity', 'quantity', 'qty', 'expected_qty', 'Quantity', 'QTY']
 };
 
-// Map CSV headers to expected format - moved outside component
+// Enhanced header mapping function
 const mapHeaders = (headers) => {
   const mappedHeaders = {};
   
@@ -17,7 +18,7 @@ const mapHeaders = (headers) => {
     const possibleHeaders = EXPECTED_HEADERS[key];
     const foundHeader = headers.find(header => 
       possibleHeaders.some(possible => 
-        header.toLowerCase() === possible.toLowerCase()
+        header.toLowerCase().trim() === possible.toLowerCase().trim()
       )
     );
     if (foundHeader) {
@@ -39,72 +40,74 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
 
-  // File validation
+  // Enhanced file validation
   const validateFile = (file) => {
     const errors = [];
     
-    // Check file type
     if (!file.type.includes('csv') && !file.name.endsWith('.csv')) {
       errors.push('Please upload a CSV file');
     }
     
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      errors.push('File size must be less than 5MB');
+    if (file.size > 10 * 1024 * 1024) { // Increased to 10MB
+      errors.push('File size must be less than 10MB');
     }
     
     return errors;
   };
 
-  // Validate CSV data structure - no dependencies needed now
+  // Enhanced CSV data validation with barcode support
   const validateCSVData = useCallback((data, headers) => {
     const errors = [];
     const mappedHeaders = mapHeaders(headers);
     
-    // Check for required SKU column
-    if (!mappedHeaders.sku) {
-      errors.push('CSV must contain a SKU column (sku, SKU, item_code, product_code, or part_number)');
+    console.log('Available headers:', headers);
+    console.log('Mapped headers:', mappedHeaders);
+    
+    // Check for required columns (either SKU or barcode must be present)
+    if (!mappedHeaders.sku && !mappedHeaders.barcode) {
+      errors.push('CSV must contain either a SKU column or Barcode column');
     }
     
-    // Check for empty data
     if (data.length === 0) {
       errors.push('CSV file appears to be empty');
     }
     
-    // Check for duplicate SKUs
-    const skus = new Set();
+    // Check for duplicate identifiers
+    const identifiers = new Set();
     const duplicates = [];
     data.forEach((row, index) => {
-      const sku = row[mappedHeaders.sku];
-      if (sku) {
-        if (skus.has(sku)) {
-          duplicates.push(`Row ${index + 1}: ${sku}`);
+      const identifier = row[mappedHeaders.barcode] || row[mappedHeaders.sku];
+      if (identifier) {
+        const cleanIdentifier = identifier.toString().trim();
+        if (identifiers.has(cleanIdentifier)) {
+          duplicates.push(`Row ${index + 2}: ${cleanIdentifier}`);
         }
-        skus.add(sku);
+        identifiers.add(cleanIdentifier);
       }
     });
     
     if (duplicates.length > 0) {
-      errors.push(`Duplicate SKUs found: ${duplicates.join(', ')}`);
+      errors.push(`Duplicate identifiers found: ${duplicates.slice(0, 5).join(', ')}${duplicates.length > 5 ? '...' : ''}`);
     }
     
-    // Check for missing SKU values
-    const missingSKUs = [];
+    // Check for missing identifier values
+    const missingIdentifiers = [];
     data.forEach((row, index) => {
       const sku = row[mappedHeaders.sku];
-      if (!sku || sku.trim() === '') {
-        missingSKUs.push(index + 1);
+      const barcode = row[mappedHeaders.barcode];
+      if ((!sku || sku.toString().trim() === '') && (!barcode || barcode.toString().trim() === '')) {
+        missingIdentifiers.push(index + 2);
       }
     });
     
-    if (missingSKUs.length > 0) {
-      errors.push(`Missing SKU values in rows: ${missingSKUs.join(', ')}`);
+    if (missingIdentifiers.length > 0) {
+      errors.push(`Missing identifier values in rows: ${missingIdentifiers.slice(0, 10).join(', ')}${missingIdentifiers.length > 10 ? '...' : ''}`);
     }
     
-    return { errors, mappedHeaders, validRows: data.length - missingSKUs.length };
+    return { errors, mappedHeaders, validRows: data.length - missingIdentifiers.length };
   }, []);
 
-  // Process CSV file - now clean dependency array
+  // Enhanced CSV processing with proper barcode handling
   const processCSVFile = useCallback((file) => {
     setIsProcessing(true);
     setUploadStatus('Processing CSV file...');
@@ -112,14 +115,13 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     
     Papa.parse(file, {
       header: true,
-      dynamicTyping: true,
+      dynamicTyping: false, // Keep as strings to preserve leading zeros in barcodes
       skipEmptyLines: true,
       delimitersToGuess: [',', '\t', '|', ';'],
       complete: (results) => {
         try {
           const { data, meta } = results;
           
-          // Check for parsing errors
           if (meta.errors && meta.errors.length > 0) {
             const criticalErrors = meta.errors.filter(error => error.type === 'Delimiter');
             if (criticalErrors.length > 0) {
@@ -127,7 +129,9 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
             }
           }
           
-          // Validate data structure
+          console.log('Parsed CSV data:', data.slice(0, 3));
+          console.log('CSV headers:', meta.fields);
+          
           const { errors, mappedHeaders, validRows } = validateCSVData(data, meta.fields);
           
           if (errors.length > 0) {
@@ -137,14 +141,34 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
             return;
           }
           
-          // Transform data to expected format
+          // Transform data with proper barcode support
           const transformedData = data
-            .filter(row => row[mappedHeaders.sku] && row[mappedHeaders.sku].toString().trim() !== '')
-            .map((row, index) => ({
-              sku: row[mappedHeaders.sku].toString().trim(),
-              description: row[mappedHeaders.description]?.toString().trim() || '',
-              expected_quantity: parseInt(row[mappedHeaders.expected_quantity]) || 0
-            }));
+            .filter(row => {
+              const sku = row[mappedHeaders.sku];
+              const barcode = row[mappedHeaders.barcode];
+              return (sku && sku.toString().trim() !== '') || (barcode && barcode.toString().trim() !== '');
+            })
+            .map((row, index) => {
+              // Use barcode as primary identifier, fall back to SKU
+              const primaryIdentifier = row[mappedHeaders.barcode]?.toString().trim() || 
+                                       row[mappedHeaders.sku]?.toString().trim() || 
+                                       `unknown_${index}`;
+              
+              const secondaryIdentifier = row[mappedHeaders.sku]?.toString().trim() || 
+                                          row[mappedHeaders.barcode]?.toString().trim() || 
+                                          primaryIdentifier;
+              
+              return {
+                sku: primaryIdentifier, // This will be used for searching/matching
+                barcode: primaryIdentifier, // Keep same for consistency
+                alternateId: secondaryIdentifier !== primaryIdentifier ? secondaryIdentifier : null,
+                description: row[mappedHeaders.description]?.toString().trim() || '',
+                expected_quantity: parseInt(row[mappedHeaders.expected_quantity]) || 0,
+                originalRow: index + 2 // For error reporting
+              };
+            });
+          
+          console.log('Transformed data sample:', transformedData.slice(0, 3));
           
           // Create preview
           const previewInfo = {
@@ -154,8 +178,10 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
             validRows: transformedData.length,
             skippedRows: data.length - transformedData.length,
             headers: mappedHeaders,
-            sampleData: transformedData.slice(0, 5), // First 5 rows for preview
-            uploadTime: new Date().toISOString()
+            sampleData: transformedData.slice(0, 5),
+            uploadTime: new Date().toISOString(),
+            hasBarcode: !!mappedHeaders.barcode,
+            hasSku: !!mappedHeaders.sku
           };
           
           setPreviewData({ transformedData, previewInfo });
@@ -222,7 +248,6 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     }
   }, [processCSVFile]);
 
-  // File input handler
   const handleFileSelect = useCallback((e) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -237,7 +262,6 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     }
   }, [processCSVFile]);
 
-  // Confirm upload
   const handleConfirmUpload = () => {
     if (!previewData) return;
     
@@ -247,7 +271,6 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
       setShowPreview(false);
       setUploadStatus('Upload successful!');
       
-      // Clear file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -258,19 +281,16 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
     }
   };
 
-  // Cancel preview
   const handleCancelPreview = () => {
     setPreviewData(null);
     setShowPreview(false);
     setUploadStatus('');
     
-    // Clear file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Clear existing session warning
   const hasExistingSession = existingSession && existingSession.skus && existingSession.skus.length > 0;
 
   return (
@@ -391,9 +411,10 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
             
             <div className="text-sm text-gray-500 space-y-1">
               <div>• Accepted format: CSV files only</div>
-              <div>• Required columns: SKU (or equivalent)</div>
+              <div>• Required columns: SKU OR Barcode (at least one)</div>
               <div>• Optional columns: Description, Expected Quantity</div>
-              <div>• Maximum file size: 5MB</div>
+              <div>• Supports UPC, EAN, and other barcode formats</div>
+              <div>• Maximum file size: 10MB</div>
             </div>
             
             {isProcessing && (
@@ -409,7 +430,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
         </div>
       )}
 
-      {/* Preview Modal */}
+      {/* Enhanced Preview Modal */}
       {showPreview && previewData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div 
@@ -418,7 +439,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
           >
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
-                CSV Upload Preview
+                CSV Upload Preview - Enhanced Barcode Support
               </h3>
               <p className="text-gray-600 text-sm mt-1">
                 Review your data before starting the count session
@@ -428,44 +449,43 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               {/* File Info */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: '#F9FAFB' }}
-                >
+                <div className="p-3 rounded-lg bg-gray-50">
                   <div className="text-sm text-gray-600">Filename</div>
                   <div className="font-medium text-gray-900">{previewData.previewInfo.filename}</div>
                 </div>
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: '#F9FAFB' }}
-                >
+                <div className="p-3 rounded-lg bg-gray-50">
                   <div className="text-sm text-gray-600">File Size</div>
                   <div className="font-medium text-gray-900">{previewData.previewInfo.fileSize}</div>
                 </div>
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: '#F9FAFB' }}
-                >
+                <div className="p-3 rounded-lg bg-gray-50">
                   <div className="text-sm text-gray-600">Total Items</div>
                   <div className="font-medium text-gray-900">{previewData.previewInfo.validRows}</div>
                 </div>
-                <div 
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: '#F9FAFB' }}
-                >
+                <div className="p-3 rounded-lg bg-gray-50">
                   <div className="text-sm text-gray-600">Skipped Rows</div>
                   <div className="font-medium text-gray-900">{previewData.previewInfo.skippedRows}</div>
                 </div>
               </div>
 
-              {/* Column Mapping */}
+              {/* Enhanced Column Mapping */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Column Mapping</h4>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                  <div className="text-sm font-medium text-green-800">Barcode Support Active</div>
+                  <div className="text-xs text-green-600 mt-1">
+                    {previewData.previewInfo.hasBarcode ? 'Barcode column detected and mapped' : 'Using SKU column as identifier'}
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {Object.entries(previewData.previewInfo.headers).map(([key, value]) => (
                     <div key={key} className="flex items-center text-sm">
-                      <span className="font-medium text-gray-700 w-24">{key}:</span>
+                      <span className="font-medium text-gray-700 w-32 capitalize">{key.replace('_', ' ')}:</span>
                       <span className="text-gray-600">"{value}"</span>
+                      {key === 'barcode' && (
+                        <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                          Primary ID
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -476,19 +496,36 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
                 <h4 className="font-medium text-gray-900 mb-3">Sample Data (First 5 Rows)</h4>
                 <div className="overflow-x-auto">
                   <table className="min-w-full border border-gray-200 rounded-lg">
-                    <thead style={{ backgroundColor: '#F9FAFB' }}>
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">SKU</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Identifier</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Description</th>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Expected Qty</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Type</th>
                       </tr>
                     </thead>
                     <tbody>
                       {previewData.previewInfo.sampleData.map((row, index) => (
                         <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-2 text-sm text-gray-900 border-b border-gray-200">{row.sku}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 border-b border-gray-200 font-mono">
+                            {row.sku}
+                            {row.alternateId && (
+                              <div className="text-xs text-gray-500 mt-1">Alt: {row.alternateId}</div>
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-sm text-gray-600 border-b border-gray-200">{row.description || '-'}</td>
                           <td className="px-4 py-2 text-sm text-gray-900 border-b border-gray-200">{row.expected_quantity}</td>
+                          <td className="px-4 py-2 text-sm border-b border-gray-200">
+                            {previewData.previewInfo.hasBarcode ? (
+                              <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                                Barcode
+                              </span>
+                            ) : (
+                              <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
+                                SKU
+                              </span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -512,7 +549,7 @@ const CSVUploadComponent = ({ onUploadSuccess, onUploadError, existingSession = 
                   color: '#00001C'
                 }}
               >
-                Start Count Session
+                Start Count Session ({previewData.previewInfo.validRows} items)
               </button>
             </div>
           </div>
