@@ -1,4 +1,4 @@
-// Fixed CountSession.js - Live state updates for progress tracking
+// Enhanced CountSession.js - Added confirmation/rejection workflow for counts
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
@@ -14,6 +14,10 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [cameraSupported, setCameraSupported] = useState(true);
+  
+  // NEW: Confirmation workflow state
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingCount, setPendingCount] = useState(null);
   
   // FIXED: Add live session state that updates after each count
   const [liveSession, setLiveSession] = useState(initialSession);
@@ -302,7 +306,7 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
     }, 100);
   };
 
-  // FIXED: Enhanced count submission with live session refresh
+  // NEW: Modified count submission to show confirmation instead of immediately saving
   const handleSubmitCount = async () => {
     if (!currentSku || !currentQuantity) {
       setStatus('Please enter both SKU/Barcode and quantity');
@@ -318,15 +322,8 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
     }
 
     try {
-      console.log('=== DEBUG SCAN SUBMISSION ===');
+      console.log('=== PREPARING COUNT FOR CONFIRMATION ===');
       console.log('Scanned input:', currentSku);
-      console.log('Available SKUs in session:', liveSession.skus.slice(0, 5).map(s => ({
-        sku: s.sku,
-        barcode: s.barcode,
-        alternateId: s.alternateId,
-        counted: s.counted
-      })));
-      console.log('Searching for match...');
 
       // FIXED: Search in live session data
       let foundItem = liveSession.skus.find(sku => {
@@ -342,27 +339,50 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
         return;
       }
 
-      console.log('✅ Found item:', foundItem.sku, 'Quantity:', quantity);
+      console.log('✅ Found item for confirmation:', foundItem.sku, 'Quantity:', quantity);
       
-      const result = localStorageManager.countSku(foundItem.sku, quantity);
+      // Set up pending count for confirmation
+      setPendingCount({
+        item: foundItem,
+        quantity: quantity,
+        scannedInput: currentSku
+      });
+      
+      setShowConfirmation(true);
+      
+    } catch (error) {
+      console.error('Count preparation error:', error);
+      setStatus(`Error: ${error.message}`);
+      setStatusType('error');
+    }
+  };
+
+  // NEW: Confirm the count and save it
+  const handleConfirmCount = async () => {
+    if (!pendingCount) return;
+    
+    try {
+      console.log('=== CONFIRMING COUNT ===');
+      const { item, quantity } = pendingCount;
+      
+      const result = localStorageManager.countSku(item.sku, quantity);
       
       if (result.success) {
         console.log('=== COUNT SUCCESS DEBUG ===');
         console.log('Result:', result);
-        console.log('Updated session:', result.session);
-        console.log('Session progress:', result.session.countProgress);
-        console.log('Total SKUs with counted=true:', result.session.skus.filter(s => s.counted).length);
 
-        setStatus(`✓ Counted: ${foundItem.sku} - Qty: ${quantity}`);
+        setStatus(`✓ Confirmed: ${item.sku} - Qty: ${quantity}`);
         setStatusType('success');
         
         // FIXED: Immediately refresh session to update progress
         refreshSession();
         
-        // Clear inputs
+        // Clear all inputs and states
         setCurrentSku('');
         setCurrentQuantity('');
         setSelectedSkuData(null);
+        setPendingCount(null);
+        setShowConfirmation(false);
         
         setTimeout(() => {
           if (skuInputRef.current) {
@@ -384,10 +404,29 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
         setStatusType('error');
       }
     } catch (error) {
-      console.error('Count submission error:', error);
+      console.error('Count confirmation error:', error);
       setStatus(`Error: ${error.message}`);
       setStatusType('error');
     }
+  };
+
+  // NEW: Reject the count and allow user to re-enter
+  const handleRejectCount = () => {
+    console.log('=== COUNT REJECTED ===');
+    setStatus('Count rejected. Please re-enter the correct quantity.');
+    setStatusType('error');
+    
+    // Clear confirmation but keep the scanned SKU and quantity for editing
+    setPendingCount(null);
+    setShowConfirmation(false);
+    
+    // Focus back to quantity input for correction
+    setTimeout(() => {
+      if (quantityInputRef.current) {
+        quantityInputRef.current.focus();
+        quantityInputRef.current.select(); // Select all text for easy replacement
+      }
+    }, 100);
   };
 
   const handleKeyPress = (e, nextAction) => {
@@ -547,18 +586,19 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
                 borderColor: '#39414E',
                 color: '#FAFCFB'
               }}
+              disabled={showConfirmation}
             />
             
             {cameraSupported && (
               <button
                 onClick={startCamera}
-                disabled={showCamera || !cameraSupported}
+                disabled={showCamera || !cameraSupported || showConfirmation}
                 className="absolute right-3 p-2 rounded-lg transition-all"
                 style={{ 
                   backgroundColor: 'transparent',
                   border: 'none',
-                  cursor: (showCamera || !cameraSupported) ? 'not-allowed' : 'pointer',
-                  opacity: (showCamera || !cameraSupported) ? '0.5' : '1'
+                  cursor: (showCamera || !cameraSupported || showConfirmation) ? 'not-allowed' : 'pointer',
+                  opacity: (showCamera || !cameraSupported || showConfirmation) ? '0.5' : '1'
                 }}
                 title={cameraSupported ? "Scan barcode with camera" : "Camera not supported"}
               >
@@ -577,7 +617,7 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
             )}
           </div>
 
-          {showDropdown && searchResults.length > 0 && (
+          {showDropdown && searchResults.length > 0 && !showConfirmation && (
             <div 
               ref={dropdownRef}
               className="absolute top-full left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-lg border shadow-lg z-10"
@@ -657,23 +697,139 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
               borderColor: '#39414E',
               color: '#FAFCFB'
             }}
+            disabled={showConfirmation}
           />
         </div>
 
-        <button
-          onClick={handleSubmitCount}
-          disabled={!currentSku || !currentQuantity}
-          className="w-full py-3 rounded-lg font-medium text-base"
-          style={{ 
-            backgroundColor: (!currentSku || !currentQuantity) ? '#39414E' : '#86EFAC',
-            color: (!currentSku || !currentQuantity) ? '#9FA3AC' : '#00001C',
-            border: 'none',
-            cursor: (!currentSku || !currentQuantity) ? 'not-allowed' : 'pointer'
-          }}
-        >
-          Count Item
-        </button>
+        {!showConfirmation ? (
+          <button
+            onClick={handleSubmitCount}
+            disabled={!currentSku || !currentQuantity}
+            className="w-full py-3 rounded-lg font-medium text-base"
+            style={{ 
+              backgroundColor: (!currentSku || !currentQuantity) ? '#39414E' : '#86EFAC',
+              color: (!currentSku || !currentQuantity) ? '#9FA3AC' : '#00001C',
+              border: 'none',
+              cursor: (!currentSku || !currentQuantity) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Review Count
+          </button>
+        ) : null}
       </div>
+
+      {/* NEW: Count Confirmation Modal */}
+      {showConfirmation && pendingCount && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div 
+            className="rounded-xl p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: '#181B22', border: '2px solid #86EFAC' }}
+          >
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold mb-2" style={{ color: '#FAFCFB' }}>
+                Confirm Count
+              </h3>
+              <p className="text-sm" style={{ color: '#9FA3AC' }}>
+                Please review and confirm your count before proceeding
+              </p>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              {/* Item Details */}
+              <div 
+                className="p-4 rounded-lg"
+                style={{ backgroundColor: '#15161B', border: '1px solid #39414E' }}
+              >
+                <div className="font-medium font-mono mb-1" style={{ color: '#86EFAC' }}>
+                  {pendingCount.item.sku}
+                </div>
+                {pendingCount.item.alternateId && (
+                  <div className="text-xs font-mono mb-1" style={{ color: '#9FA3AC' }}>
+                    Alt: {pendingCount.item.alternateId}
+                  </div>
+                )}
+                {pendingCount.item.description && (
+                  <div className="text-sm mb-1" style={{ color: '#9FA3AC' }}>
+                    {pendingCount.item.description}
+                  </div>
+                )}
+                <div className="text-xs" style={{ color: '#9FA3AC' }}>
+                  Expected: {pendingCount.item.expectedQuantity}
+                </div>
+              </div>
+
+              {/* Count Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div 
+                  className="p-3 rounded-lg text-center"
+                  style={{ backgroundColor: '#15161B' }}
+                >
+                  <div className="text-xs mb-1" style={{ color: '#9FA3AC' }}>Expected</div>
+                  <div className="text-xl font-bold" style={{ color: '#FAFCFB' }}>
+                    {pendingCount.item.expectedQuantity}
+                  </div>
+                </div>
+                <div 
+                  className="p-3 rounded-lg text-center"
+                  style={{ backgroundColor: '#86EFAC20', border: '1px solid #86EFAC' }}
+                >
+                  <div className="text-xs mb-1" style={{ color: '#86EFAC' }}>Your Count</div>
+                  <div className="text-xl font-bold" style={{ color: '#86EFAC' }}>
+                    {pendingCount.quantity}
+                  </div>
+                </div>
+              </div>
+
+              {/* Variance Indicator */}
+              {pendingCount.quantity !== pendingCount.item.expectedQuantity && (
+                <div 
+                  className="p-3 rounded-lg text-center"
+                  style={{ 
+                    backgroundColor: Math.abs(pendingCount.quantity - pendingCount.item.expectedQuantity) > 5 ? '#FEE2E2' : '#FEF3C7',
+                    border: `1px solid ${Math.abs(pendingCount.quantity - pendingCount.item.expectedQuantity) > 5 ? '#F87171' : '#F59E0B'}`,
+                    color: Math.abs(pendingCount.quantity - pendingCount.item.expectedQuantity) > 5 ? '#B91C1C' : '#B45309'
+                  }}
+                >
+                  <div className="text-sm font-medium">
+                    Variance: {pendingCount.quantity > pendingCount.item.expectedQuantity ? '+' : ''}
+                    {pendingCount.quantity - pendingCount.item.expectedQuantity}
+                  </div>
+                  {Math.abs(pendingCount.quantity - pendingCount.item.expectedQuantity) > 5 && (
+                    <div className="text-xs mt-1">
+                      Large variance detected - please double-check your count
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              <button
+                onClick={handleRejectCount}
+                className="flex-1 py-3 px-4 rounded-lg font-medium border transition-colors"
+                style={{ 
+                  backgroundColor: 'transparent', 
+                  color: '#F87171',
+                  borderColor: '#F87171'
+                }}
+              >
+                Reject & Re-enter
+              </button>
+              <button
+                onClick={handleConfirmCount}
+                className="flex-1 py-3 px-4 rounded-lg font-medium transition-colors"
+                style={{ 
+                  backgroundColor: '#86EFAC', 
+                  color: '#00001C'
+                }}
+              >
+                Confirm Count
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Camera Scanner Modal */}
       {showCamera && (
@@ -828,7 +984,7 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
                   backgroundColor: '#15161B', 
                   borderColor: '#39414E' 
                 }}
-                onClick={() => handleSkuSelect(sku)}
+                onClick={() => !showConfirmation && handleSkuSelect(sku)}
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-medium font-mono" style={{ color: '#FAFCFB' }}>
@@ -883,6 +1039,7 @@ const CountSession = ({ session: initialSession, onCountComplete, onCancelSessio
             color: '#F87171',
             borderColor: '#F87171'
           }}
+          disabled={showConfirmation}
         >
           Cancel
         </button>
