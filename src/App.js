@@ -1,4 +1,4 @@
-// Fixed App.js - Proper state management for session updates  
+// Fixed App.js - Proper state management for session updates and corrected JSX structure
 import React, { useState, useEffect, useCallback } from 'react';
 import Dashboard from './components/Dashboard';
 import CountSession from './components/CountSession';
@@ -234,178 +234,177 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="App min-h-screen" style={{ backgroundColor: '#15161B' }}>
-          {/* Header */}
-          <div style={{ backgroundColor: '#181B22' }} className="shadow-sm border-b border-gray-700">
-            <div className="px-4 py-4">
-              <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold" style={{ color: '#FAFCFB' }}>
-                  Inventory Insights
-                  <span className="ml-2 text-xs px-2 py-1 rounded" style={{ backgroundColor: '#86EFAC', color: '#00001C' }}>
-                    FRONTEND
-                  </span>
-                </h1>
+        {/* Header */}
+        <div style={{ backgroundColor: '#181B22' }} className="shadow-sm border-b border-gray-700">
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-bold" style={{ color: '#FAFCFB' }}>
+                Inventory Insights
+                <span className="ml-2 text-xs px-2 py-1 rounded" style={{ backgroundColor: '#86EFAC', color: '#00001C' }}>
+                  FRONTEND
+                </span>
+              </h1>
+              
+              {/* Navigation */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={goToDashboard}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currentView === 'dashboard' 
+                      ? 'bg-emerald-300 text-gray-900' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Dashboard
+                </button>
                 
-                {/* Navigation */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={goToDashboard}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      currentView === 'dashboard' 
-                        ? 'bg-emerald-300 text-gray-900' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    Dashboard
-                  </button>
-                  
-                  <button
-                    onClick={goToUpload}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      currentView === 'upload' 
-                        ? 'bg-emerald-300 text-gray-900' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    Upload CSV
-                  </button>
-                  
-                  <button
-                    onClick={goToExport}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      currentView === 'export' 
-                        ? 'bg-emerald-300 text-gray-900' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    Export
-                  </button>
-                </div>
+                <button
+                  onClick={goToUpload}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currentView === 'upload' 
+                      ? 'bg-emerald-300 text-gray-900' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Upload CSV
+                </button>
+                
+                <button
+                  onClick={goToExport}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currentView === 'export' 
+                      ? 'bg-emerald-300 text-gray-900' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  Export
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* FIXED: Debug Info (remove in production) */}
-          {currentSession && (
-            <div className="px-4 py-2 bg-blue-900 text-blue-100 text-xs">
-              🔧 Debug: Session {currentSession.id.slice(-8)} | 
-              Items: {currentSession.skus?.filter(s => s.counted)?.length || 0}/{currentSession.skus?.length || 0} | 
-              Progress: {Math.round((currentSession.skus?.filter(s => s.counted)?.length || 0) / (currentSession.skus?.length || 1) * 100)}%
-            </div>
-          )}
-
-          {/* Global Error Message */}
-          {error && (
-            <div className="px-4 py-3">
-              <div className="rounded-lg p-4 border" style={{ 
-                backgroundColor: '#FEE2E2', 
-                borderColor: '#F87171',
-                color: '#B91C1C'
-              }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{error}</span>
-                  <button
-                    onClick={() => setError('')}
-                    className="text-xs px-2 py-1 rounded"
-                    style={{ backgroundColor: '#F87171', color: 'white' }}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Main Content */}
-          <div className="flex-1">
-            {currentView === 'dashboard' && (
-              <Dashboard
-                currentSession={currentSession}
-                appStats={appStats}
-                onStartNewSession={handleStartNewSession}
-                onContinueCounting={handleContinueCountingWithRefresh}
-                onRefresh={refreshStats}
-              />
-            )}
-
-            {currentView === 'upload' && (
-              <div className="px-4 py-6">
-                <div className="max-w-4xl mx-auto">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
-                      Upload Inventory CSV
-                    </h2>
-                    <p style={{ color: '#9FA3AC' }}>
-                      Upload your inventory CSV file to start a new count session
-                    </p>
-                  </div>
-                  
-                  <CSVUploadComponent
-                    onUploadSuccess={handleCSVUploadSuccess}
-                    onUploadError={handleCSVUploadError}
-                    existingSession={currentSession}
-                  />
-                </div>
-              </div>
-            )}
-
-            {currentView === 'count-session' && currentSession && (
-              <CountSession
-                session={currentSession}
-                onCountComplete={handleCountComplete}
-                onCancelSession={handleCancelSession}
-                onBack={goToDashboard}
-              />
-            )}
-
-            {currentView === 'export' && (
-              <div className="px-4 py-6">
-                <div className="max-w-4xl mx-auto">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
-                      Export Data
-                    </h2>
-                    <p style={{ color: '#9FA3AC' }}>
-                      Export your count sessions and results
-                    </p>
-                  </div>
-                  
-                  <DataExporter
-                    currentSession={currentSession}
-                  />
-                </div>
-              </div>
-            )}
+        {/* FIXED: Debug Info (remove in production) */}
+        {currentSession && (
+          <div className="px-4 py-2 bg-blue-900 text-blue-100 text-xs">
+            🔧 Debug: Session {currentSession.id.slice(-8)} | 
+            Items: {currentSession.skus?.filter(s => s.counted)?.length || 0}/{currentSession.skus?.length || 0} | 
+            Progress: {Math.round((currentSession.skus?.filter(s => s.counted)?.length || 0) / (currentSession.skus?.length || 1) * 100)}%
           </div>
+        )}
 
-          {/* Footer */}
-          <div 
-            className="border-t text-center py-4"
-            style={{ 
-              backgroundColor: '#181B22', 
-              borderColor: '#39414E',
-              color: '#9FA3AC' 
-            }}
-          >
-            <div className="text-xs space-y-1">
-              <div>Inventory Insights - Pure Frontend Mode</div>
-              <div className="flex items-center justify-center space-x-4">
+        {/* Global Error Message */}
+        {error && (
+          <div className="px-4 py-3">
+            <div className="rounded-lg p-4 border" style={{ 
+              backgroundColor: '#FEE2E2', 
+              borderColor: '#F87171',
+              color: '#B91C1C'
+            }}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{error}</span>
+                <button
+                  onClick={() => setError('')}
+                  className="text-xs px-2 py-1 rounded"
+                  style={{ backgroundColor: '#F87171', color: 'white' }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1">
+          {currentView === 'dashboard' && (
+            <Dashboard
+              currentSession={currentSession}
+              appStats={appStats}
+              onStartNewSession={handleStartNewSession}
+              onContinueCounting={handleContinueCountingWithRefresh}
+              onRefresh={refreshStats}
+            />
+          )}
+
+          {currentView === 'upload' && (
+            <div className="px-4 py-6">
+              <div className="max-w-4xl mx-auto">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
+                    Upload Inventory CSV
+                  </h2>
+                  <p style={{ color: '#9FA3AC' }}>
+                    Upload your inventory CSV file to start a new count session
+                  </p>
+                </div>
+                
+                <CSVUploadComponent
+                  onUploadSuccess={handleCSVUploadSuccess}
+                  onUploadError={handleCSVUploadError}
+                  existingSession={currentSession}
+                />
+              </div>
+            </div>
+          )}
+
+          {currentView === 'count-session' && currentSession && (
+            <CountSession
+              session={currentSession}
+              onCountComplete={handleCountComplete}
+              onCancelSession={handleCancelSession}
+              onBack={goToDashboard}
+            />
+          )}
+
+          {currentView === 'export' && (
+            <div className="px-4 py-6">
+              <div className="max-w-4xl mx-auto">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
+                    Export Data
+                  </h2>
+                  <p style={{ color: '#9FA3AC' }}>
+                    Export your count sessions and results
+                  </p>
+                </div>
+                
+                <DataExporter
+                  currentSession={currentSession}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div 
+          className="border-t text-center py-4"
+          style={{ 
+            backgroundColor: '#181B22', 
+            borderColor: '#39414E',
+            color: '#9FA3AC' 
+          }}
+        >
+          <div className="text-xs space-y-1">
+            <div>Inventory Insights - Pure Frontend Mode</div>
+            <div className="flex items-center justify-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <span 
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: '#86EFAC' }}
+                ></span>
+                <span>Local Storage Active</span>
+              </div>
+              {currentSession && (
                 <div className="flex items-center space-x-1">
                   <span 
                     className="w-2 h-2 rounded-full"
                     style={{ backgroundColor: '#86EFAC' }}
                   ></span>
-                  <span>Local Storage Active</span>
+                  <span>Count Session Active</span>
                 </div>
-                {currentSession && (
-                  <div className="flex items-center space-x-1">
-                    <span 
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: '#86EFAC' }}
-                    ></span>
-                    <span>Count Session Active</span>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
