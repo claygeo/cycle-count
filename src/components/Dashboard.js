@@ -1,4 +1,4 @@
-// src/components/Dashboard.js - Pure Frontend Dashboard (Updated)
+// Updated Dashboard.js - Enhanced with barcode support indicators
 import React from 'react';
 import { DateTime } from 'luxon';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
@@ -24,9 +24,19 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
           }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold" style={{ color: '#FAFCFB' }}>
-              Active Count Session
-            </h2>
+            <div className="flex items-center space-x-3">
+              <h2 className="text-lg font-semibold" style={{ color: '#FAFCFB' }}>
+                Active Count Session
+              </h2>
+              {sessionStats?.hasBarcode && (
+                <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ 
+                  backgroundColor: '#86EFAC', 
+                  color: '#00001C' 
+                }}>
+                  BARCODE
+                </span>
+              )}
+            </div>
             <span className="px-3 py-1 rounded-full text-xs font-medium" style={{ 
               backgroundColor: '#86EFAC', 
               color: '#00001C' 
@@ -57,6 +67,19 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
                 </div>
               </div>
             </div>
+
+            {/* Enhanced Features Info */}
+            {sessionStats && (sessionStats.hasBarcode || sessionStats.barcodeSupport) && (
+              <div className="p-3 rounded-lg" style={{ backgroundColor: '#86EFAC20', border: '1px solid #86EFAC' }}>
+                <div className="text-sm font-medium" style={{ color: '#86EFAC' }}>
+                  Enhanced Features Active
+                </div>
+                <div className="text-xs mt-1" style={{ color: '#9FA3AC' }}>
+                  {sessionStats.hasBarcode && 'Barcode scanning enabled'}
+                  {sessionStats.barcodeSupport && ' • Camera scanner available'}
+                </div>
+              </div>
+            )}
 
             {/* Progress Bar */}
             <div>
@@ -120,6 +143,9 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
               </h2>
               <p style={{ color: '#9FA3AC' }}>
                 Upload a CSV file to start counting your inventory
+              </p>
+              <p className="text-xs mt-2" style={{ color: '#86EFAC' }}>
+                Supports barcode scanning and multiple identifier types
               </p>
             </div>
             
@@ -250,6 +276,11 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
                 'None'
               }
             </div>
+            {appStats?.history?.lastBarcodeScanned && (
+              <div className="text-xs mt-1 font-mono" style={{ color: '#86EFAC' }}>
+                Last scanned: {appStats.history.lastBarcodeScanned}
+              </div>
+            )}
           </div>
         </div>
 
@@ -282,7 +313,7 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
           >
             <div className="text-sm font-medium mb-1">Export Current</div>
             <div className="text-xs" style={{ color: '#9FA3AC' }}>
-              Download current session as CSV
+              {currentSession?.barcodeSupport ? 'CSV with barcode support' : 'Download current session as CSV'}
             </div>
           </button>
           
@@ -355,6 +386,15 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
               ></span>
               <span>Frontend Mode</span>
             </div>
+            {sessionStats?.barcodeSupport && (
+              <div className="flex items-center space-x-1">
+                <span 
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: '#86EFAC' }}
+                ></span>
+                <span>Barcode Scanner</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -362,10 +402,10 @@ const Dashboard = ({ currentSession, appStats, onStartNewSession, onContinueCoun
   );
 };
 
-// Recent Sessions Component
+// Enhanced Recent Sessions Component
 const RecentSessionsList = () => {
   const sessionHistory = localStorageManager.getSessionHistory();
-  const recentSessions = sessionHistory.slice(0, 5); // Show last 5 sessions
+  const recentSessions = sessionHistory.slice(0, 5);
 
   if (recentSessions.length === 0) {
     return (
@@ -388,8 +428,18 @@ const RecentSessionsList = () => {
           style={{ backgroundColor: '#15161B' }}
         >
           <div className="flex-1">
-            <div className="font-medium text-sm" style={{ color: '#FAFCFB' }}>
-              {session.uploadData?.filename || 'Unknown'}
+            <div className="flex items-center space-x-2">
+              <div className="font-medium text-sm" style={{ color: '#FAFCFB' }}>
+                {session.uploadData?.filename || 'Unknown'}
+              </div>
+              {session.barcodeSupport && (
+                <span className="px-2 py-1 rounded text-xs font-medium" style={{ 
+                  backgroundColor: '#86EFAC', 
+                  color: '#00001C' 
+                }}>
+                  BARCODE
+                </span>
+              )}
             </div>
             <div className="text-xs" style={{ color: '#9FA3AC' }}>
               {new Date(session.uploadDate).toLocaleDateString()} • 
