@@ -1,6 +1,5 @@
-// src/App.js - Pure Frontend Application (No Backend/Authentication)
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+// Fixed App.js - Proper state management for session updates  
+import React, { useState, useEffect, useCallback } from 'react';
 import Dashboard from './components/Dashboard';
 import CountSession from './components/CountSession';
 import CSVUploadComponent from './components/CSVUploadComponent';
@@ -15,6 +14,31 @@ function App() {
   const [appStats, setAppStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // FIXED: Enhanced refresh function that updates all state
+  const refreshStats = useCallback(() => {
+    try {
+      console.log('🔄 Refreshing app state...');
+      
+      const session = localStorageManager.getCurrentSession();
+      const stats = localStorageManager.getDashboardStats();
+      
+      console.log('📊 Updated session data:', {
+        hasSession: !!session,
+        sessionId: session?.id,
+        totalItems: session?.skus?.length || 0,
+        countedItems: session?.skus?.filter(s => s.counted)?.length || 0
+      });
+      
+      setCurrentSession(session);
+      setAppStats(stats);
+      
+      console.log('✅ App state refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing stats:', error);
+      setError('Failed to refresh data');
+    }
+  }, []);
 
   // Initialize app and load existing session
   useEffect(() => {
@@ -40,19 +64,17 @@ function App() {
     }
   }, []);
 
-  // Refresh app statistics
-  const refreshStats = () => {
-    try {
-      const session = localStorageManager.getCurrentSession();
-      const stats = localStorageManager.getDashboardStats();
+  // FIXED: Auto-refresh session data periodically to catch updates
+  useEffect(() => {
+    if (currentView === 'count-session') {
+      const interval = setInterval(() => {
+        console.log('⏰ Auto-refreshing session data...');
+        refreshStats();
+      }, 5000); // Refresh every 5 seconds during counting
       
-      setCurrentSession(session);
-      setAppStats(stats);
-    } catch (error) {
-      console.error('Error refreshing stats:', error);
-      setError('Failed to refresh data');
+      return () => clearInterval(interval);
     }
-  };
+  }, [currentView, refreshStats]);
 
   // Handle CSV upload success
   const handleCSVUploadSuccess = (filename, csvData) => {
@@ -127,10 +149,11 @@ function App() {
     setError('');
   };
 
-  // Navigation handlers
+  // Navigation handlers with state refresh
   const goToDashboard = () => {
     setCurrentView('dashboard');
     setError('');
+    refreshStats(); // Refresh when going back to dashboard
   };
 
   const goToUpload = () => {
@@ -141,12 +164,33 @@ function App() {
   const goToExport = () => {
     setCurrentView('export');
     setError('');
+    refreshStats(); // Refresh for export data
   };
 
   const continueCounting = () => {
     if (currentSession) {
       setCurrentView('count-session');
       setError('');
+      refreshStats(); // Refresh before entering count session
+    }
+  };
+
+  // FIXED: Enhanced continue counting with session validation
+  const handleContinueCountingWithRefresh = () => {
+    try {
+      // Always get the latest session data
+      const latestSession = localStorageManager.getCurrentSession();
+      if (latestSession) {
+        setCurrentSession(latestSession);
+        setCurrentView('count-session');
+        setError('');
+        console.log('🔄 Continuing with refreshed session data');
+      } else {
+        setError('No active session found');
+      }
+    } catch (error) {
+      console.error('Error continuing session:', error);
+      setError('Failed to continue session');
     }
   };
 
@@ -189,8 +233,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <div className="App min-h-screen" style={{ backgroundColor: '#15161B' }}>
+      <div className="App min-h-screen" style={{ backgroundColor: '#15161B' }}>
           {/* Header */}
           <div style={{ backgroundColor: '#181B22' }} className="shadow-sm border-b border-gray-700">
             <div className="px-4 py-4">
@@ -241,6 +284,15 @@ function App() {
             </div>
           </div>
 
+          {/* FIXED: Debug Info (remove in production) */}
+          {currentSession && (
+            <div className="px-4 py-2 bg-blue-900 text-blue-100 text-xs">
+              🔧 Debug: Session {currentSession.id.slice(-8)} | 
+              Items: {currentSession.skus?.filter(s => s.counted)?.length || 0}/{currentSession.skus?.length || 0} | 
+              Progress: {Math.round((currentSession.skus?.filter(s => s.counted)?.length || 0) / (currentSession.skus?.length || 1) * 100)}%
+            </div>
+          )}
+
           {/* Global Error Message */}
           {error && (
             <div className="px-4 py-3">
@@ -265,70 +317,64 @@ function App() {
 
           {/* Main Content */}
           <div className="flex-1">
-            <Routes>
-              <Route path="*" element={
-                <>
-                  {currentView === 'dashboard' && (
-                    <Dashboard
-                      currentSession={currentSession}
-                      appStats={appStats}
-                      onStartNewSession={handleStartNewSession}
-                      onContinueCounting={continueCounting}
-                      onRefresh={refreshStats}
-                    />
-                  )}
+            {currentView === 'dashboard' && (
+              <Dashboard
+                currentSession={currentSession}
+                appStats={appStats}
+                onStartNewSession={handleStartNewSession}
+                onContinueCounting={handleContinueCountingWithRefresh}
+                onRefresh={refreshStats}
+              />
+            )}
 
-                  {currentView === 'upload' && (
-                    <div className="px-4 py-6">
-                      <div className="max-w-4xl mx-auto">
-                        <div className="mb-6">
-                          <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
-                            Upload Inventory CSV
-                          </h2>
-                          <p style={{ color: '#9FA3AC' }}>
-                            Upload your inventory CSV file to start a new count session
-                          </p>
-                        </div>
-                        
-                        <CSVUploadComponent
-                          onUploadSuccess={handleCSVUploadSuccess}
-                          onUploadError={handleCSVUploadError}
-                          existingSession={currentSession}
-                        />
-                      </div>
-                    </div>
-                  )}
+            {currentView === 'upload' && (
+              <div className="px-4 py-6">
+                <div className="max-w-4xl mx-auto">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
+                      Upload Inventory CSV
+                    </h2>
+                    <p style={{ color: '#9FA3AC' }}>
+                      Upload your inventory CSV file to start a new count session
+                    </p>
+                  </div>
+                  
+                  <CSVUploadComponent
+                    onUploadSuccess={handleCSVUploadSuccess}
+                    onUploadError={handleCSVUploadError}
+                    existingSession={currentSession}
+                  />
+                </div>
+              </div>
+            )}
 
-                  {currentView === 'count-session' && currentSession && (
-                    <CountSession
-                      session={currentSession}
-                      onCountComplete={handleCountComplete}
-                      onCancelSession={handleCancelSession}
-                      onBack={goToDashboard}
-                    />
-                  )}
+            {currentView === 'count-session' && currentSession && (
+              <CountSession
+                session={currentSession}
+                onCountComplete={handleCountComplete}
+                onCancelSession={handleCancelSession}
+                onBack={goToDashboard}
+              />
+            )}
 
-                  {currentView === 'export' && (
-                    <div className="px-4 py-6">
-                      <div className="max-w-4xl mx-auto">
-                        <div className="mb-6">
-                          <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
-                            Export Data
-                          </h2>
-                          <p style={{ color: '#9FA3AC' }}>
-                            Export your count sessions and results
-                          </p>
-                        </div>
-                        
-                        <DataExporter
-                          currentSession={currentSession}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </>
-              } />
-            </Routes>
+            {currentView === 'export' && (
+              <div className="px-4 py-6">
+                <div className="max-w-4xl mx-auto">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold mb-2" style={{ color: '#FAFCFB' }}>
+                      Export Data
+                    </h2>
+                    <p style={{ color: '#9FA3AC' }}>
+                      Export your count sessions and results
+                    </p>
+                  </div>
+                  
+                  <DataExporter
+                    currentSession={currentSession}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -363,7 +409,7 @@ function App() {
             </div>
           </div>
         </div>
-      </Router>
+      </div>
     </ErrorBoundary>
   );
 }

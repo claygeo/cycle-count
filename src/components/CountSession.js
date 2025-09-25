@@ -1,8 +1,8 @@
-// ESLint Fixed CountSession.js - Enhanced barcode support and proper progress tracking
+// Fixed CountSession.js - Live state updates for progress tracking
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
-const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => {
+const CountSession = ({ session: initialSession, onCountComplete, onCancelSession, onBack }) => {
   const [currentSku, setCurrentSku] = useState('');
   const [currentQuantity, setCurrentQuantity] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -15,6 +15,9 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
   const [cameraError, setCameraError] = useState('');
   const [cameraSupported, setCameraSupported] = useState(true);
   
+  // FIXED: Add live session state that updates after each count
+  const [liveSession, setLiveSession] = useState(initialSession);
+  
   // Refs
   const skuInputRef = useRef(null);
   const quantityInputRef = useRef(null);
@@ -22,6 +25,24 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scannerRef = useRef(null);
+
+  // FIXED: Update live session when initial session changes
+  useEffect(() => {
+    setLiveSession(initialSession);
+  }, [initialSession]);
+
+  // FIXED: Function to refresh session data from LocalStorage
+  const refreshSession = useCallback(() => {
+    const updatedSession = localStorageManager.getCurrentSession();
+    if (updatedSession) {
+      setLiveSession(updatedSession);
+      console.log('✅ Session refreshed:', {
+        totalItems: updatedSession.skus.length,
+        countedItems: updatedSession.skus.filter(s => s.counted).length,
+        progress: updatedSession.countProgress
+      });
+    }
+  }, []);
 
   // Check camera support
   useEffect(() => {
@@ -31,7 +52,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         return;
       }
       
-      // Check if we're in a secure context (required for camera access)
       if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
         setCameraSupported(false);
         return;
@@ -47,7 +67,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
   const stopCamera = useCallback(() => {
     console.log('Stopping camera...');
     
-    // Stop Quagga scanner
     if (scannerRef.current) {
       try {
         scannerRef.current.stop();
@@ -58,7 +77,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       }
     }
     
-    // Stop video stream
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -67,7 +85,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       streamRef.current = null;
     }
     
-    // Clear video source
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -82,7 +99,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     if (showCamera && videoRef.current && !scannerRef.current && cameraSupported) {
       const initializeScanner = async () => {
         try {
-          // Dynamic import for QuaggaJS
           const Quagga = (await import('quagga')).default;
           
           const config = {
@@ -93,7 +109,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
               constraints: {
                 width: { min: 640, ideal: 1280, max: 1920 },
                 height: { min: 480, ideal: 720, max: 1080 },
-                facingMode: "environment", // Use back camera
+                facingMode: "environment",
                 aspectRatio: { min: 1, max: 2 }
               }
             },
@@ -132,7 +148,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             setIsScanning(true);
           });
 
-          // Enhanced detection with confidence threshold
           Quagga.onDetected((result) => {
             if (result && result.codeResult) {
               const code = result.codeResult.code;
@@ -140,7 +155,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
               
               console.log('Barcode detected:', code, 'Confidence:', confidence);
               
-              // Only accept high-confidence scans
               if (confidence > 75) {
                 console.log('High confidence scan accepted:', code);
                 setCurrentSku(code);
@@ -148,7 +162,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
                 setStatus(`Barcode scanned: ${code}`);
                 setStatusType('success');
                 
-                // Auto-focus quantity input after successful scan
                 setTimeout(() => {
                   if (quantityInputRef.current) {
                     quantityInputRef.current.focus();
@@ -183,14 +196,12 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     };
   }, [showCamera, cameraSupported, stopCamera]);
 
-  // Cleanup camera on unmount
   useEffect(() => {
     return () => {
       stopCamera();
     };
   }, [stopCamera]);
 
-  // Start camera function
   const startCamera = async () => {
     if (!cameraSupported) {
       setCameraError('Camera not supported on this device or insecure connection');
@@ -236,7 +247,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
   };
 
-  // Auto-dismiss status messages
   useEffect(() => {
     if (status && statusType === 'success') {
       const timer = setTimeout(() => {
@@ -247,12 +257,11 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
   }, [status, statusType]);
 
-  // Enhanced search with barcode support
+  // FIXED: Search using live session data instead of stale session prop
   useEffect(() => {
-    if (currentSku.length >= 1) { // Start searching after 1 character
+    if (currentSku.length >= 1 && liveSession) {
       const searchTerm = currentSku.toLowerCase().trim();
-      const results = localStorageManager.searchSkus(searchTerm, true).filter(sku => {
-        // Enhanced search: check SKU, barcode, alternate ID, and description
+      const results = liveSession.skus.filter(sku => {
         return sku.sku.toLowerCase().includes(searchTerm) ||
                sku.barcode.toLowerCase().includes(searchTerm) ||
                (sku.alternateId && sku.alternateId.toLowerCase().includes(searchTerm)) ||
@@ -265,9 +274,8 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       setSearchResults([]);
       setShowDropdown(false);
     }
-  }, [currentSku]);
+  }, [currentSku, liveSession]);
 
-  // Handle clicks outside dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
@@ -282,13 +290,11 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     };
   }, []);
 
-  // Handle SKU selection
   const handleSkuSelect = (sku) => {
     setCurrentSku(sku.sku);
     setSelectedSkuData(sku);
     setShowDropdown(false);
     
-    // Auto-focus quantity input
     setTimeout(() => {
       if (quantityInputRef.current) {
         quantityInputRef.current.focus();
@@ -296,7 +302,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }, 100);
   };
 
-  // Enhanced count submission with better validation
+  // FIXED: Enhanced count submission with live session refresh
   const handleSubmitCount = async () => {
     if (!currentSku || !currentQuantity) {
       setStatus('Please enter both SKU/Barcode and quantity');
@@ -312,8 +318,18 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
 
     try {
-      // Enhanced search for the item - check multiple fields
-      let foundItem = session.skus.find(sku => {
+      console.log('=== DEBUG SCAN SUBMISSION ===');
+      console.log('Scanned input:', currentSku);
+      console.log('Available SKUs in session:', liveSession.skus.slice(0, 5).map(s => ({
+        sku: s.sku,
+        barcode: s.barcode,
+        alternateId: s.alternateId,
+        counted: s.counted
+      })));
+      console.log('Searching for match...');
+
+      // FIXED: Search in live session data
+      let foundItem = liveSession.skus.find(sku => {
         const searchSku = currentSku.toLowerCase().trim();
         return sku.sku.toLowerCase() === searchSku ||
                sku.barcode.toLowerCase() === searchSku ||
@@ -326,25 +342,33 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         return;
       }
 
-      console.log('Counting item:', foundItem.sku, 'Quantity:', quantity);
+      console.log('✅ Found item:', foundItem.sku, 'Quantity:', quantity);
       
       const result = localStorageManager.countSku(foundItem.sku, quantity);
       
       if (result.success) {
+        console.log('=== COUNT SUCCESS DEBUG ===');
+        console.log('Result:', result);
+        console.log('Updated session:', result.session);
+        console.log('Session progress:', result.session.countProgress);
+        console.log('Total SKUs with counted=true:', result.session.skus.filter(s => s.counted).length);
+
         setStatus(`✓ Counted: ${foundItem.sku} - Qty: ${quantity}`);
         setStatusType('success');
+        
+        // FIXED: Immediately refresh session to update progress
+        refreshSession();
         
         // Clear inputs
         setCurrentSku('');
         setCurrentQuantity('');
         setSelectedSkuData(null);
         
-        // Focus back to SKU input
         setTimeout(() => {
           if (skuInputRef.current) {
             skuInputRef.current.focus();
           }
-        }, 1500); // Longer delay to show success message
+        }, 1500);
         
         // Check if session is complete
         const updatedStats = localStorageManager.getCountStatistics();
@@ -366,7 +390,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
   };
 
-  // Handle Enter key navigation
   const handleKeyPress = (e, nextAction) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -374,11 +397,31 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
   };
 
-  // Get remaining items with better filtering
-  const remainingItems = session.skus.filter(sku => !sku.counted).slice(0, 10);
-  const totalItems = session.skus.length;
-  const countedItems = session.skus.filter(sku => sku.counted).length;
+  // FIXED: Calculate progress from live session data
+  const remainingItems = liveSession ? liveSession.skus.filter(sku => !sku.counted).slice(0, 10) : [];
+  const totalItems = liveSession ? liveSession.skus.length : 0;
+  const countedItems = liveSession ? liveSession.skus.filter(sku => sku.counted).length : 0;
   const remainingCount = totalItems - countedItems;
+  const progressPercentage = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
+
+  // Add debug logging for progress
+  console.log('📊 Progress Debug:', {
+    totalItems,
+    countedItems,
+    remainingCount,
+    progressPercentage,
+    sessionId: liveSession?.id
+  });
+
+  if (!liveSession) {
+    return (
+      <div className="px-4 py-6">
+        <div className="text-center">
+          <p style={{ color: '#9FA3AC' }}>Loading session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -389,7 +432,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             Count Session
           </h2>
           <p className="text-sm" style={{ color: '#9FA3AC' }}>
-            {session.uploadData?.filename || 'Unknown file'}
+            {liveSession.uploadData?.filename || 'Unknown file'}
           </p>
         </div>
         
@@ -432,7 +475,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         </div>
       )}
 
-      {/* Enhanced Progress Section */}
+      {/* FIXED: Live Progress Section */}
       <div 
         className="rounded-xl p-4 shadow-sm border"
         style={{ 
@@ -442,21 +485,35 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       >
         <div className="flex items-center justify-between mb-3">
           <span className="font-medium" style={{ color: '#FAFCFB' }}>
-            Progress
+            Live Progress
           </span>
-          <span className="text-sm" style={{ color: '#9FA3AC' }}>
-            {countedItems}/{totalItems} ({Math.round((countedItems / totalItems) * 100)}%)
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm" style={{ color: '#9FA3AC' }}>
+              {countedItems}/{totalItems} ({progressPercentage}%)
+            </span>
+            <button
+              onClick={refreshSession}
+              className="text-xs px-2 py-1 rounded"
+              style={{ backgroundColor: '#86EFAC', color: '#00001C' }}
+            >
+              Refresh
+            </button>
+          </div>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-2">
           <div 
-            className="h-2 rounded-full transition-all duration-300"
+            className="h-2 rounded-full transition-all duration-500"
             style={{ 
               backgroundColor: '#86EFAC',
-              width: `${Math.round((countedItems / totalItems) * 100)}%` 
+              width: `${progressPercentage}%` 
             }}
           />
         </div>
+        {progressPercentage === 100 && (
+          <div className="text-center mt-2 text-sm font-medium" style={{ color: '#86EFAC' }}>
+            🎉 All items counted! Ready to complete.
+          </div>
+        )}
       </div>
 
       {/* Enhanced Count Input Section */}
@@ -471,7 +528,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
           Scan or Enter SKU/Barcode
         </h3>
         
-        {/* SKU Input */}
         <div className="relative mb-4">
           <div className="flex items-center">
             <input
@@ -493,34 +549,34 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
               }}
             />
             
-            {/* Enhanced Camera Button */}
-            <button
-              onClick={startCamera}
-              disabled={showCamera || !cameraSupported}
-              className="absolute right-3 p-2 rounded-lg transition-all"
-              style={{ 
-                backgroundColor: 'transparent',
-                border: 'none',
-                cursor: (showCamera || !cameraSupported) ? 'not-allowed' : 'pointer',
-                opacity: (showCamera || !cameraSupported) ? '0.5' : '1'
-              }}
-              title={cameraSupported ? "Scan barcode with camera" : "Camera not supported"}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={cameraSupported ? "#86EFAC" : "#9FA3AC"}
-                strokeWidth="2"
+            {cameraSupported && (
+              <button
+                onClick={startCamera}
+                disabled={showCamera || !cameraSupported}
+                className="absolute right-3 p-2 rounded-lg transition-all"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  cursor: (showCamera || !cameraSupported) ? 'not-allowed' : 'pointer',
+                  opacity: (showCamera || !cameraSupported) ? '0.5' : '1'
+                }}
+                title={cameraSupported ? "Scan barcode with camera" : "Camera not supported"}
               >
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-            </button>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={cameraSupported ? "#86EFAC" : "#9FA3AC"}
+                  strokeWidth="2"
+                >
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </button>
+            )}
           </div>
 
-          {/* Enhanced Dropdown */}
           {showDropdown && searchResults.length > 0 && (
             <div 
               ref={dropdownRef}
@@ -561,7 +617,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
           )}
         </div>
 
-        {/* Selected SKU Info */}
         {selectedSkuData && (
           <div 
             className="p-3 rounded-lg mb-4"
@@ -586,7 +641,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
           </div>
         )}
 
-        {/* Quantity Input */}
         <div className="mb-4">
           <input
             ref={quantityInputRef}
@@ -606,7 +660,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
           />
         </div>
 
-        {/* Submit Button */}
         <button
           onClick={handleSubmitCount}
           disabled={!currentSku || !currentQuantity}
@@ -622,7 +675,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         </button>
       </div>
 
-      {/* Enhanced Camera Scanner Modal */}
+      {/* Camera Scanner Modal */}
       {showCamera && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div 
@@ -731,7 +784,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         </div>
       )}
 
-      {/* Fixed Remaining Items Quick Access */}
+      {/* FIXED: Remaining Items with live data */}
       <div 
         className="rounded-xl p-4 shadow-sm border"
         style={{ 
