@@ -1,4 +1,4 @@
-// src/components/CountSession.js - Pure Frontend Count Interface (Fixed)
+// Fixed CountSession.js - Enhanced barcode support and proper progress tracking
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
@@ -13,31 +13,231 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
   const [showCamera, setShowCamera] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [cameraSupported, setCameraSupported] = useState(true);
   
   // Refs
   const skuInputRef = useRef(null);
   const quantityInputRef = useRef(null);
   const dropdownRef = useRef(null);
   const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const scannerRef = useRef(null);
   
   // Get current session statistics
   const stats = localStorageManager.getCountStatistics();
 
-  // Stop camera
+  // Check camera support
+  useEffect(() => {
+    const checkCameraSupport = () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraSupported(false);
+        return;
+      }
+      
+      // Check if we're in a secure context (required for camera access)
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        setCameraSupported(false);
+        return;
+      }
+      
+      setCameraSupported(true);
+    };
+    
+    checkCameraSupport();
+  }, []);
+
+  // Enhanced barcode scanner with better detection
+  useEffect(() => {
+    if (showCamera && videoRef.current && !scannerRef.current && cameraSupported) {
+      const initializeScanner = async () => {
+        try {
+          // Dynamic import for QuaggaJS
+          const Quagga = (await import('quagga')).default;
+          
+          const config = {
+            inputStream: {
+              name: "Live",
+              type: "LiveStream",
+              target: videoRef.current,
+              constraints: {
+                width: { min: 640, ideal: 1280, max: 1920 },
+                height: { min: 480, ideal: 720, max: 1080 },
+                facingMode: "environment", // Use back camera
+                aspectRatio: { min: 1, max: 2 }
+              }
+            },
+            locator: {
+              patchSize: "medium",
+              halfSample: true
+            },
+            numOfWorkers: 2,
+            decoder: {
+              readers: [
+                "code_128_reader",
+                "ean_reader",
+                "ean_8_reader", 
+                "code_39_reader",
+                "code_39_vin_reader",
+                "codabar_reader",
+                "upc_reader",
+                "upc_e_reader",
+                "i2of5_reader"
+              ]
+            },
+            locate: true
+          };
+
+          console.log('Initializing Quagga scanner...');
+          
+          Quagga.init(config, (err) => {
+            if (err) {
+              console.error('Quagga initialization error:', err);
+              setCameraError('Failed to initialize barcode scanner. Please try again.');
+              return;
+            }
+            
+            console.log('Quagga initialized successfully');
+            Quagga.start();
+            setIsScanning(true);
+          });
+
+          // Enhanced detection with confidence threshold
+          Quagga.onDetected((result) => {
+            if (result && result.codeResult) {
+              const code = result.codeResult.code;
+              const confidence = result.codeResult.confidence || 0;
+              
+              console.log('Barcode detected:', code, 'Confidence:', confidence);
+              
+              // Only accept high-confidence scans
+              if (confidence > 75) {
+                console.log('High confidence scan accepted:', code);
+                setCurrentSku(code);
+                stopCamera();
+                setStatus(`Barcode scanned: ${code}`);
+                setStatusType('success');
+                
+                // Auto-focus quantity input after successful scan
+                setTimeout(() => {
+                  if (quantityInputRef.current) {
+                    quantityInputRef.current.focus();
+                  }
+                }, 100);
+              } else {
+                console.log('Low confidence scan ignored:', code, confidence);
+              }
+            }
+          });
+
+          scannerRef.current = Quagga;
+        } catch (error) {
+          console.error('Error loading Quagga:', error);
+          setCameraError('Barcode scanner library not available. Please enter codes manually.');
+        }
+      };
+
+      initializeScanner();
+    }
+
+    return () => {
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.stop();
+          scannerRef.current.offDetected();
+          scannerRef.current = null;
+        } catch (error) {
+          console.error('Error stopping scanner:', error);
+        }
+      }
+    };
+  }, [showCamera, cameraSupported]);
+
+  // Stop camera function
   const stopCamera = useCallback(() => {
+    console.log('Stopping camera...');
+    
+    // Stop Quagga scanner
     if (scannerRef.current) {
       try {
         scannerRef.current.stop();
+        scannerRef.current.offDetected();
         scannerRef.current = null;
       } catch (error) {
-        console.error('Error stopping scanner:', error);
+        console.error('Error stopping Quagga:', error);
       }
     }
+    
+    // Stop video stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('Stopped video track:', track.kind);
+      });
+      streamRef.current = null;
+    }
+    
+    // Clear video source
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
     setShowCamera(false);
     setIsScanning(false);
     setCameraError('');
   }, []);
+
+  // Start camera function
+  const startCamera = async () => {
+    if (!cameraSupported) {
+      setCameraError('Camera not supported on this device or insecure connection');
+      return;
+    }
+
+    try {
+      setCameraError('');
+      setShowCamera(true);
+      
+      console.log('Requesting camera access...');
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
+        }
+      });
+      
+      console.log('Camera access granted');
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Camera access error:', error);
+      let errorMessage = 'Camera access denied';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No camera found on this device.';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage = 'Camera not supported on this device.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Camera is in use by another application.';
+      }
+      
+      setCameraError(errorMessage);
+      setShowCamera(false);
+    }
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
   // Auto-dismiss status messages
   useEffect(() => {
@@ -50,10 +250,18 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
   }, [status, statusType]);
 
-  // Search SKUs as user types
+  // Enhanced search with barcode support
   useEffect(() => {
-    if (currentSku.length >= 2) {
-      const results = localStorageManager.searchSkus(currentSku, true);
+    if (currentSku.length >= 1) { // Start searching after 1 character
+      const searchTerm = currentSku.toLowerCase().trim();
+      const results = localStorageManager.searchSkus(searchTerm, true).filter(sku => {
+        // Enhanced search: check SKU, barcode, alternate ID, and description
+        return sku.sku.toLowerCase().includes(searchTerm) ||
+               sku.barcode.toLowerCase().includes(searchTerm) ||
+               (sku.alternateId && sku.alternateId.toLowerCase().includes(searchTerm)) ||
+               (sku.description && sku.description.toLowerCase().includes(searchTerm));
+      });
+      
       setSearchResults(results.slice(0, 10));
       setShowDropdown(results.length > 0);
     } else {
@@ -77,76 +285,6 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     };
   }, []);
 
-  // Camera cleanup - FIXED: Added stopCamera to dependency array
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, [stopCamera]);
-
-  // Start camera for barcode scanning
-  const startCamera = async () => {
-    try {
-      setCameraError('');
-      setShowCamera(true);
-      
-      // Dynamic import for QuaggaJS
-      const Quagga = await import('quagga');
-      
-      const config = {
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: videoRef.current,
-          constraints: {
-            width: 320,
-            height: 240,
-            facingMode: "environment"
-          }
-        },
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "code_39_reader",
-            "upc_reader"
-          ]
-        }
-      };
-
-      Quagga.init(config, (err) => {
-        if (err) {
-          console.error('Camera initialization error:', err);
-          setCameraError('Failed to initialize camera scanner');
-          return;
-        }
-        
-        Quagga.start();
-        setIsScanning(true);
-        
-        Quagga.onDetected((result) => {
-          if (result && result.codeResult && result.codeResult.code) {
-            const barcode = result.codeResult.code;
-            setCurrentSku(barcode);
-            stopCamera();
-            setStatus(`Barcode scanned: ${barcode}`);
-            setStatusType('success');
-            
-            if (skuInputRef.current) {
-              skuInputRef.current.focus();
-            }
-          }
-        });
-      });
-
-      scannerRef.current = Quagga;
-    } catch (error) {
-      console.error('Error starting camera:', error);
-      setCameraError('Camera not available on this device');
-      setShowCamera(false);
-    }
-  };
-
   // Handle SKU selection
   const handleSkuSelect = (sku) => {
     setCurrentSku(sku.sku);
@@ -161,19 +299,42 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }, 100);
   };
 
-  // Handle count submission
+  // Enhanced count submission with better validation
   const handleSubmitCount = async () => {
     if (!currentSku || !currentQuantity) {
-      setStatus('Please enter both SKU and quantity');
+      setStatus('Please enter both SKU/Barcode and quantity');
+      setStatusType('error');
+      return;
+    }
+
+    const quantity = parseInt(currentQuantity);
+    if (isNaN(quantity) || quantity < 0) {
+      setStatus('Please enter a valid quantity (0 or greater)');
       setStatusType('error');
       return;
     }
 
     try {
-      const result = localStorageManager.countSku(currentSku, currentQuantity);
+      // Enhanced search for the item - check multiple fields
+      let foundItem = session.skus.find(sku => {
+        const searchSku = currentSku.toLowerCase().trim();
+        return sku.sku.toLowerCase() === searchSku ||
+               sku.barcode.toLowerCase() === searchSku ||
+               (sku.alternateId && sku.alternateId.toLowerCase() === searchSku);
+      });
+      
+      if (!foundItem) {
+        setStatus(`Item not found: "${currentSku}". Please check the SKU/Barcode.`);
+        setStatusType('error');
+        return;
+      }
+
+      console.log('Counting item:', foundItem.sku, 'Quantity:', quantity);
+      
+      const result = localStorageManager.countSku(foundItem.sku, quantity);
       
       if (result.success) {
-        setStatus(`Counted: ${currentSku} - Qty: ${currentQuantity}`);
+        setStatus(`✓ Counted: ${foundItem.sku} - Qty: ${quantity}`);
         setStatusType('success');
         
         // Clear inputs
@@ -186,17 +347,20 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
           if (skuInputRef.current) {
             skuInputRef.current.focus();
           }
-        }, 100);
+        }, 1500); // Longer delay to show success message
         
         // Check if session is complete
         const updatedStats = localStorageManager.getCountStatistics();
         if (updatedStats && updatedStats.percentage === 100) {
           setTimeout(() => {
-            if (window.confirm('All items have been counted! Complete this session?')) {
+            if (window.confirm('🎉 All items have been counted! Complete this session?')) {
               onCountComplete();
             }
-          }, 1000);
+          }, 2000);
         }
+      } else {
+        setStatus(`Error: ${result.error}`);
+        setStatusType('error');
       }
     } catch (error) {
       console.error('Count submission error:', error);
@@ -213,8 +377,11 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
     }
   };
 
-  // Get remaining items for quick access
+  // Get remaining items with better filtering
   const remainingItems = session.skus.filter(sku => !sku.counted).slice(0, 10);
+  const totalItems = session.skus.length;
+  const countedItems = session.skus.filter(sku => sku.counted).length;
+  const remainingCount = totalItems - countedItems;
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -268,7 +435,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         </div>
       )}
 
-      {/* Progress Section */}
+      {/* Enhanced Progress Section */}
       <div 
         className="rounded-xl p-4 shadow-sm border"
         style={{ 
@@ -281,7 +448,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             Progress
           </span>
           <span className="text-sm" style={{ color: '#9FA3AC' }}>
-            {stats ? `${stats.counted}/${stats.total} (${stats.percentage}%)` : '0/0 (0%)'}
+            {countedItems}/{totalItems} ({Math.round((countedItems / totalItems) * 100)}%)
           </span>
         </div>
         <div className="w-full bg-gray-700 rounded-full h-2">
@@ -289,13 +456,13 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             className="h-2 rounded-full transition-all duration-300"
             style={{ 
               backgroundColor: '#86EFAC',
-              width: `${stats ? stats.percentage : 0}%` 
+              width: `${Math.round((countedItems / totalItems) * 100)}%` 
             }}
           />
         </div>
       </div>
 
-      {/* Count Input Section */}
+      {/* Enhanced Count Input Section */}
       <div 
         className="rounded-xl p-4 shadow-sm border relative"
         style={{ 
@@ -304,7 +471,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         }}
       >
         <h3 className="font-semibold mb-3" style={{ color: '#FAFCFB' }}>
-          Count Item
+          Scan or Enter SKU/Barcode
         </h3>
         
         {/* SKU Input */}
@@ -320,8 +487,8 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
                   quantityInputRef.current.focus();
                 }
               })}
-              placeholder="Enter SKU or barcode..."
-              className="flex-1 px-4 py-3 rounded-lg border text-base pr-12"
+              placeholder="Enter SKU, barcode, or scan with camera..."
+              className="flex-1 px-4 py-3 rounded-lg border text-base pr-12 font-mono"
               style={{ 
                 backgroundColor: '#15161B', 
                 borderColor: '#39414E',
@@ -329,24 +496,25 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
               }}
             />
             
-            {/* Camera Button */}
+            {/* Enhanced Camera Button */}
             <button
               onClick={startCamera}
-              disabled={showCamera}
-              className="absolute right-3 p-2 rounded-lg"
+              disabled={showCamera || !cameraSupported}
+              className="absolute right-3 p-2 rounded-lg transition-all"
               style={{ 
                 backgroundColor: 'transparent',
                 border: 'none',
-                cursor: showCamera ? 'not-allowed' : 'pointer',
-                opacity: showCamera ? '0.5' : '1'
+                cursor: (showCamera || !cameraSupported) ? 'not-allowed' : 'pointer',
+                opacity: (showCamera || !cameraSupported) ? '0.5' : '1'
               }}
+              title={cameraSupported ? "Scan barcode with camera" : "Camera not supported"}
             >
               <svg
                 width="20"
                 height="20"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#86EFAC"
+                stroke={cameraSupported ? "#86EFAC" : "#9FA3AC"}
                 strokeWidth="2"
               >
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -355,7 +523,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             </button>
           </div>
 
-          {/* Dropdown */}
+          {/* Enhanced Dropdown */}
           {showDropdown && searchResults.length > 0 && (
             <div 
               ref={dropdownRef}
@@ -373,16 +541,21 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
                   onClick={() => handleSkuSelect(sku)}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium" style={{ color: '#00001C' }}>
+                    <div className="font-medium font-mono" style={{ color: '#00001C' }}>
                       {sku.sku}
                     </div>
+                    {sku.alternateId && sku.alternateId !== sku.sku && (
+                      <div className="text-xs font-mono" style={{ color: '#00001C' }}>
+                        Alt: {sku.alternateId}
+                      </div>
+                    )}
                     {sku.description && (
                       <div className="text-sm truncate" style={{ color: '#00001C' }}>
                         {sku.description}
                       </div>
                     )}
                     <div className="text-xs" style={{ color: '#00001C' }}>
-                      Expected: {sku.expectedQuantity} | {sku.counted ? 'Counted' : 'Not Counted'}
+                      Expected: {sku.expectedQuantity} • {sku.counted ? '✓ Counted' : 'Not Counted'}
                     </div>
                   </div>
                 </div>
@@ -397,9 +570,14 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             className="p-3 rounded-lg mb-4"
             style={{ backgroundColor: '#86EFAC20', borderColor: '#86EFAC', border: '1px solid' }}
           >
-            <div className="text-sm font-medium" style={{ color: '#86EFAC' }}>
+            <div className="text-sm font-medium font-mono" style={{ color: '#86EFAC' }}>
               Selected: {selectedSkuData.sku}
             </div>
+            {selectedSkuData.alternateId && (
+              <div className="text-xs font-mono" style={{ color: '#9FA3AC' }}>
+                Alternate ID: {selectedSkuData.alternateId}
+              </div>
+            )}
             {selectedSkuData.description && (
               <div className="text-xs" style={{ color: '#9FA3AC' }}>
                 {selectedSkuData.description}
@@ -420,6 +598,8 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             onChange={(e) => setCurrentQuantity(e.target.value)}
             onKeyPress={(e) => handleKeyPress(e, handleSubmitCount)}
             placeholder="Enter counted quantity..."
+            min="0"
+            step="1"
             className="w-full px-4 py-3 rounded-lg border text-base"
             style={{ 
               backgroundColor: '#15161B', 
@@ -445,7 +625,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         </button>
       </div>
 
-      {/* Camera Scanner Modal */}
+      {/* Enhanced Camera Scanner Modal */}
       {showCamera && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
           <div 
@@ -471,6 +651,16 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             {cameraError ? (
               <div className="text-center py-8">
                 <div className="text-red-400 mb-4">{cameraError}</div>
+                <div className="text-sm text-gray-400 mb-4">
+                  {cameraError.includes('permission') && (
+                    <div>
+                      <p>To enable camera access:</p>
+                      <p>1. Click the camera icon in your browser's address bar</p>
+                      <p>2. Select "Allow" for camera permissions</p>
+                      <p>3. Refresh the page and try again</p>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={stopCamera}
                   className="px-4 py-2 rounded-lg font-medium"
@@ -499,10 +689,33 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
                       objectFit: 'cover'
                     }}
                   />
+                  {isScanning && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="border-2 border-red-500 bg-transparent" 
+                           style={{
+                             width: '200px',
+                             height: '60px',
+                             opacity: 0.7
+                           }}>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="text-sm mb-4" style={{ color: '#9FA3AC' }}>
-                  {isScanning ? 'Position barcode in camera view' : 'Initializing camera...'}
+                  {isScanning ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-pulse mr-2">📷</div>
+                        Position barcode in the red box
+                      </div>
+                      <div className="text-xs">
+                        Scanning for UPC, EAN, Code 128, and other formats...
+                      </div>
+                    </div>
+                  ) : (
+                    'Initializing camera scanner...'
+                  )}
                 </div>
                 
                 <button
@@ -521,7 +734,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
         </div>
       )}
 
-      {/* Remaining Items Quick Access */}
+      {/* Fixed Remaining Items Quick Access */}
       <div 
         className="rounded-xl p-4 shadow-sm border"
         style={{ 
@@ -531,26 +744,26 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold" style={{ color: '#FAFCFB' }}>
-            Remaining Items ({remainingItems.length > 10 ? '10+' : remainingItems.length})
+            Remaining Items ({remainingCount})
           </h3>
           
-          {stats && stats.percentage === 100 && (
+          {countedItems === totalItems && totalItems > 0 && (
             <button
               onClick={onCountComplete}
-              className="px-4 py-2 rounded-lg font-medium text-sm"
+              className="px-4 py-2 rounded-lg font-medium text-sm animate-pulse"
               style={{ 
                 backgroundColor: '#86EFAC', 
                 color: '#00001C'
               }}
             >
-              Complete Session
+              🎉 Complete Session
             </button>
           )}
         </div>
 
         {remainingItems.length === 0 ? (
           <div className="text-center py-8" style={{ color: '#86EFAC' }}>
-            <div className="text-lg mb-2">All items counted!</div>
+            <div className="text-lg mb-2">🎉 All items counted!</div>
             <div className="text-sm" style={{ color: '#9FA3AC' }}>
               Ready to complete this session
             </div>
@@ -560,7 +773,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             {remainingItems.map((sku, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-800"
+                className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-gray-800 transition-colors"
                 style={{ 
                   backgroundColor: '#15161B', 
                   borderColor: '#39414E' 
@@ -568,9 +781,14 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
                 onClick={() => handleSkuSelect(sku)}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium" style={{ color: '#FAFCFB' }}>
+                  <div className="font-medium font-mono" style={{ color: '#FAFCFB' }}>
                     {sku.sku}
                   </div>
+                  {sku.alternateId && sku.alternateId !== sku.sku && (
+                    <div className="text-xs font-mono" style={{ color: '#9FA3AC' }}>
+                      Alt: {sku.alternateId}
+                    </div>
+                  )}
                   {sku.description && (
                     <div className="text-sm truncate" style={{ color: '#9FA3AC' }}>
                       {sku.description}
@@ -604,7 +822,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             borderColor: '#86EFAC'
           }}
         >
-          Export Current Progress
+          Export Progress ({countedItems}/{totalItems})
         </button>
         
         <button
@@ -616,7 +834,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
             borderColor: '#F87171'
           }}
         >
-          Cancel Session
+          Cancel
         </button>
       </div>
     </div>
