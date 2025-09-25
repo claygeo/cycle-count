@@ -1,4 +1,4 @@
-// Updated DataExporter.js - Enhanced with barcode support in exports
+// ESLint Fixed DataExporter.js - Enhanced with barcode support in exports
 import React, { useState } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
@@ -95,7 +95,6 @@ const DataExporter = ({ currentSession }) => {
 
         combinedData.sessions.forEach(session => {
           const sessionInfo = session.sessionInfo;
-          const hasBarcodeData = sessionInfo.hasBarcode || session.results.some(r => r.barcode && r.barcode !== r.sku);
           
           session.results.forEach(result => {
             const row = [
