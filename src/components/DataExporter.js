@@ -1,4 +1,4 @@
-// src/components/DataExporter.js - Pure Frontend Data Export
+// Updated DataExporter.js - Enhanced with barcode support in exports
 import React, { useState } from 'react';
 import { localStorageManager, storageHelpers } from '../utils/LocalStorageManager';
 
@@ -6,6 +6,7 @@ const DataExporter = ({ currentSession }) => {
   const [selectedSessions, setSelectedSessions] = useState([]);
   const [exportFormat, setExportFormat] = useState('csv');
   const [includeDetails, setIncludeDetails] = useState(true);
+  const [includeBarcodes, setIncludeBarcodes] = useState(true);
   
   // Get session history
   const sessionHistory = localStorageManager.getSessionHistory();
@@ -37,14 +38,14 @@ const DataExporter = ({ currentSession }) => {
     try {
       const success = storageHelpers.exportSessionAsCSV();
       if (success) {
-        console.log('Current session exported successfully');
+        console.log('Current session exported successfully with barcode support');
       }
     } catch (error) {
       console.error('Export error:', error);
     }
   };
 
-  // Export selected sessions
+  // Enhanced export with barcode support
   const handleExportSelected = () => {
     if (selectedSessions.length === 0) return;
     
@@ -55,6 +56,7 @@ const DataExporter = ({ currentSession }) => {
         sessionsCount: selectedSessions.length,
         format: exportFormat,
         includeDetails,
+        includeBarcodes,
         sessions: []
       };
 
@@ -65,11 +67,11 @@ const DataExporter = ({ currentSession }) => {
         }
       });
 
-      // Generate CSV content
+      // Generate enhanced CSV content with barcode support
       let csvContent = '';
       
       if (exportFormat === 'csv') {
-        // CSV format
+        // Enhanced CSV headers with barcode support
         const headers = [
           'Session ID',
           'Filename', 
@@ -78,8 +80,8 @@ const DataExporter = ({ currentSession }) => {
           'Total Items',
           'Counted Items',
           'Progress %',
-          'SKU',
-          'Barcode',
+          'SKU/Primary ID',
+          ...(includeBarcodes ? ['Barcode', 'Alternate ID'] : []),
           'Description',
           'Expected Qty',
           'Counted Qty',
@@ -93,18 +95,22 @@ const DataExporter = ({ currentSession }) => {
 
         combinedData.sessions.forEach(session => {
           const sessionInfo = session.sessionInfo;
+          const hasBarcodeData = sessionInfo.hasBarcode || session.results.some(r => r.barcode && r.barcode !== r.sku);
           
           session.results.forEach(result => {
             const row = [
-              sessionInfo.id,
+              `"${sessionInfo.id}"`,
               `"${sessionInfo.filename || ''}"`,
               new Date(sessionInfo.uploadDate).toLocaleDateString(),
               sessionInfo.status,
               sessionInfo.countProgress?.total || 0,
               sessionInfo.countProgress?.counted || 0,
               sessionInfo.countProgress?.percentage || 0,
-              result.sku,
-              result.barcode,
+              `"${result.sku}"`,
+              ...(includeBarcodes ? [
+                `"${result.barcode || result.sku}"`,
+                `"${result.alternateId || ''}"`
+              ] : []),
               `"${result.description || ''}"`,
               result.expectedQuantity || 0,
               result.countedQuantity || '',
@@ -119,26 +125,32 @@ const DataExporter = ({ currentSession }) => {
         });
       }
 
-      // Download file
+      // Download enhanced file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const filename = `inventory_export_${selectedSessions.length}_sessions_${new Date().toISOString().split('T')[0]}.csv`;
+      const barcodeIndicator = includeBarcodes ? '_with_barcodes' : '';
+      const filename = `inventory_export${barcodeIndicator}_${selectedSessions.length}_sessions_${new Date().toISOString().split('T')[0]}.csv`;
       
       storageHelpers.downloadBlob(blob, filename);
       
-      console.log(`Exported ${selectedSessions.length} sessions successfully`);
+      console.log(`Exported ${selectedSessions.length} sessions with barcode support: ${includeBarcodes}`);
       
     } catch (error) {
       console.error('Export error:', error);
     }
   };
 
-  // Export all data as JSON backup
+  // Enhanced backup with barcode metadata
   const handleExportBackup = () => {
     try {
       const backupData = {
         exportDate: new Date().toISOString(),
-        exportType: 'full_backup',
-        version: '1.0',
+        exportType: 'full_backup_with_barcode_support',
+        version: '2.0',
+        features: {
+          barcodeSupport: true,
+          cameraScanning: true,
+          multipleIdentifiers: true
+        },
         currentSession: localStorageManager.getCurrentSession(),
         sessionHistory: localStorageManager.getSessionHistory(),
         appState: localStorageManager.getAppState(),
@@ -147,16 +159,21 @@ const DataExporter = ({ currentSession }) => {
 
       const jsonContent = JSON.stringify(backupData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-      const filename = `inventory_backup_${new Date().toISOString().split('T')[0]}.json`;
+      const filename = `inventory_backup_enhanced_${new Date().toISOString().split('T')[0]}.json`;
       
       storageHelpers.downloadBlob(blob, filename);
       
-      console.log('Full backup exported successfully');
+      console.log('Enhanced backup with barcode support exported successfully');
       
     } catch (error) {
       console.error('Backup export error:', error);
     }
   };
+
+  // Check if any sessions have barcode data
+  const hasBarcodeSessions = sessionHistory.some(session => 
+    session.barcodeSupport || session.uploadData?.hasBarcode
+  );
 
   return (
     <div className="space-y-6">
@@ -169,9 +186,19 @@ const DataExporter = ({ currentSession }) => {
             borderColor: '#39414E' 
           }}
         >
-          <h3 className="text-lg font-semibold mb-4" style={{ color: '#FAFCFB' }}>
-            Current Session
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold" style={{ color: '#FAFCFB' }}>
+              Current Session
+            </h3>
+            {currentSession.barcodeSupport && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ 
+                backgroundColor: '#86EFAC', 
+                color: '#00001C' 
+              }}>
+                BARCODE ENABLED
+              </span>
+            )}
+          </div>
           
           <div className="flex items-center justify-between p-4 rounded-lg" style={{ backgroundColor: '#15161B' }}>
             <div>
@@ -182,6 +209,11 @@ const DataExporter = ({ currentSession }) => {
                 {currentSession.countProgress.counted} / {currentSession.countProgress.total} items counted
                 ({currentSession.countProgress.percentage}%)
               </div>
+              {currentSession.uploadData?.hasBarcode && (
+                <div className="text-xs mt-1" style={{ color: '#86EFAC' }}>
+                  Barcode data included in export
+                </div>
+              )}
             </div>
             
             <button
@@ -207,9 +239,19 @@ const DataExporter = ({ currentSession }) => {
         }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold" style={{ color: '#FAFCFB' }}>
-            Session History ({sessionHistory.length})
-          </h3>
+          <div className="flex items-center space-x-3">
+            <h3 className="text-lg font-semibold" style={{ color: '#FAFCFB' }}>
+              Session History ({sessionHistory.length})
+            </h3>
+            {hasBarcodeSessions && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium" style={{ 
+                backgroundColor: '#86EFAC', 
+                color: '#00001C' 
+              }}>
+                BARCODE DATA
+              </span>
+            )}
+          </div>
           
           {sessionHistory.length > 0 && (
             <button
@@ -253,8 +295,18 @@ const DataExporter = ({ currentSession }) => {
                   />
                   
                   <div>
-                    <div className="font-medium" style={{ color: '#FAFCFB' }}>
-                      {session.uploadData?.filename || 'Unknown'}
+                    <div className="flex items-center space-x-2">
+                      <div className="font-medium" style={{ color: '#FAFCFB' }}>
+                        {session.uploadData?.filename || 'Unknown'}
+                      </div>
+                      {session.barcodeSupport && (
+                        <span className="px-2 py-1 rounded text-xs font-medium" style={{ 
+                          backgroundColor: '#86EFAC', 
+                          color: '#00001C' 
+                        }}>
+                          BARCODE
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm" style={{ color: '#9FA3AC' }}>
                       {new Date(session.uploadDate).toLocaleDateString()} • 
@@ -275,7 +327,7 @@ const DataExporter = ({ currentSession }) => {
         )}
       </div>
 
-      {/* Export Options */}
+      {/* Enhanced Export Options */}
       {(selectedSessions.length > 0 || sessionHistory.length > 0) && (
         <div 
           className="rounded-xl p-6 shadow-sm border"
@@ -304,13 +356,13 @@ const DataExporter = ({ currentSession }) => {
                     className="mr-2"
                     style={{ accentColor: '#86EFAC' }}
                   />
-                  <span style={{ color: '#9FA3AC' }}>CSV (Excel compatible)</span>
+                  <span style={{ color: '#9FA3AC' }}>Enhanced CSV (Excel compatible)</span>
                 </label>
               </div>
             </div>
 
-            {/* Include Details */}
-            <div>
+            {/* Enhanced Options */}
+            <div className="space-y-3">
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -323,9 +375,29 @@ const DataExporter = ({ currentSession }) => {
                   Include detailed item information
                 </span>
               </label>
-              <p className="text-xs mt-1" style={{ color: '#9FA3AC' }}>
+              <p className="text-xs ml-6" style={{ color: '#9FA3AC' }}>
                 Includes descriptions, expected quantities, and variance calculations
               </p>
+
+              {hasBarcodeSessions && (
+                <>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={includeBarcodes}
+                      onChange={(e) => setIncludeBarcodes(e.target.checked)}
+                      className="mr-2"
+                      style={{ accentColor: '#86EFAC' }}
+                    />
+                    <span className="text-sm font-medium" style={{ color: '#FAFCFB' }}>
+                      Include barcode and alternate ID columns
+                    </span>
+                  </label>
+                  <p className="text-xs ml-6" style={{ color: '#9FA3AC' }}>
+                    Exports barcode data, alternate IDs, and scanning metadata
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -344,9 +416,12 @@ const DataExporter = ({ currentSession }) => {
           }}
         >
           Export Selected ({selectedSessions.length})
+          {selectedSessions.length > 0 && includeBarcodes && hasBarcodeSessions && (
+            <div className="text-xs opacity-80">with barcodes</div>
+          )}
         </button>
 
-        {/* Export All as CSV */}
+        {/* Export All */}
         <button
           onClick={() => {
             setSelectedSessions(sessionHistory.map(s => s.id));
@@ -361,6 +436,9 @@ const DataExporter = ({ currentSession }) => {
           }}
         >
           Export All Sessions
+          {hasBarcodeSessions && (
+            <div className="text-xs opacity-80">enhanced format</div>
+          )}
         </button>
 
         {/* Full Backup */}
@@ -373,11 +451,12 @@ const DataExporter = ({ currentSession }) => {
             borderColor: '#F59E0B'
           }}
         >
-          Full Data Backup (JSON)
+          Full Data Backup
+          <div className="text-xs opacity-80">JSON with metadata</div>
         </button>
       </div>
 
-      {/* Export Info */}
+      {/* Enhanced Export Info */}
       <div 
         className="rounded-lg p-4"
         style={{ 
@@ -385,12 +464,13 @@ const DataExporter = ({ currentSession }) => {
           color: '#374151'
         }}
       >
-        <h4 className="font-medium mb-2">Export Information</h4>
+        <h4 className="font-medium mb-2">Enhanced Export Information</h4>
         <ul className="text-sm space-y-1">
-          <li>• <strong>CSV Export:</strong> Excel-compatible format with count results and variance analysis</li>
-          <li>• <strong>Current Session:</strong> Exports your active counting session (including partial progress)</li>
-          <li>• <strong>Selected Sessions:</strong> Combines multiple completed sessions into one export file</li>
-          <li>• <strong>Full Backup:</strong> JSON format containing all app data for backup/restore purposes</li>
+          <li>• <strong>Enhanced CSV Export:</strong> Excel-compatible format with barcode support and variance analysis</li>
+          <li>• <strong>Current Session:</strong> Exports your active counting session with all barcode data</li>
+          <li>• <strong>Barcode Columns:</strong> Includes SKU, barcode, and alternate ID fields when available</li>
+          <li>• <strong>Selected Sessions:</strong> Combines multiple sessions with consistent barcode formatting</li>
+          <li>• <strong>Full Backup:</strong> JSON format with complete barcode metadata for backup/restore</li>
         </ul>
       </div>
     </div>
