@@ -35,7 +35,7 @@ const CountSession = ({ session, onCountComplete, onCancelSession, onBack }) => 
       }
       
       // Check if we're in a secure context (required for camera access)
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
         setCameraSupported(false);
         return;
       }
