@@ -167,13 +167,7 @@ function App() {
     refreshStats(); // Refresh for export data
   };
 
-  const continueCounting = () => {
-    if (currentSession) {
-      setCurrentView('count-session');
-      setError('');
-      refreshStats(); // Refresh before entering count session
-    }
-  };
+
 
   // FIXED: Enhanced continue counting with session validation
   const handleContinueCountingWithRefresh = () => {
